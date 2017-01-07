@@ -276,6 +276,30 @@ void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool
 	*/
 }
 
+void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response, bool power){
+
+	MCANMSG can_frame;
+
+	can_frame.cmd = SWITCH_ACC;
+	can_frame.resp_bit = response;
+	can_frame.hash = device.hash;
+	can_frame.dlc = 6;
+	can_frame.data[0] = 0;
+	can_frame.data[1] = 0;
+	can_frame.data[2] = locId >> 8;
+	can_frame.data[3] = locId;
+	can_frame.data[4] = state;
+//	can_frame.data[5] = 1;		//old value: 0
+	can_frame.data[5] = power;
+
+	sendCanFrame(can_frame);
+	/*
+	delay(20);
+	can_frame.data[5] = 0;
+	sendCanFrame(can_frame);
+	*/
+}
+
 void MCAN::checkS88StateFrame(CanDevice device, uint16_t dev_id, uint16_t contact_id){
 
 	MCANMSG can_frame;

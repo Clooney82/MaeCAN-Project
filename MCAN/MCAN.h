@@ -139,6 +139,7 @@ public:
 	 *             Zustand des Zubehörs, Auftrag (false) oder Antwort (true).
 	 ******************************************************************************/
 	void sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response);
+  void sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response, bool power);
 
   /******************************************************************************
 	 *  Name: checkS88StateFrame
