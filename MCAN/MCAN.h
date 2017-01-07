@@ -4,7 +4,7 @@
  *  Do with this whatever you want, but keep thes Header and tell
  *  the others what you changed!
  *
- *  Last changed: 2016-10-17
+ *  Last changed: 2017-01-06
  */
 
 
@@ -132,13 +132,21 @@ public:
 	 ******************************************************************************/
 	void sendPingFrame(CanDevice device, bool response);
 
-	/******************************************************************************
+  /******************************************************************************
 	 *  Name: sendAccessoryFrame
 	 *  Funktion: Sendet einen Schaltauftrag oder die Antwort auf einen.
 	 *  Parameter: Geräteinformationen, Local-ID des zu schaltenden Zubehörs,
 	 *             Zustand des Zubehörs, Auftrag (false) oder Antwort (true).
 	 ******************************************************************************/
 	void sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response);
+
+  /******************************************************************************
+	 *  Name: checkS88StateFrame
+	 *  Funktion: Fragt den aktuellen Zustand eines Rückmeldekontakt ab.
+	 *  Parameter: Geräteinformationen, Gerätekennung, Kontaktkennung
+	 *              des abzufragenden Kontakt.
+	 ******************************************************************************/
+	void checkS88StateFrame(CanDevice device, uint16_t dev_id, uint16_t contact_id);
 
 	/******************************************************************************
 	 *  Name: getCanFrame

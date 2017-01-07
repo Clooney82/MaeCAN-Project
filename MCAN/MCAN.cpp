@@ -4,7 +4,7 @@
  *  Do with this whatever you want, but keep thes Header and tell
  *  the others what you changed!
  *
- *  Last changed: 2016-10-17
+ *  Last changed: 2017-01-06
  */
 
 
@@ -269,11 +269,26 @@ void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool
 	can_frame.data[5] = 1;		//old value: 0
 
 	sendCanFrame(can_frame);
-/*
-	can_frame.data[4] = 0xfe - state;
-
+	/*
+	delay(20);
+	can_frame.data[5] = 0;
 	sendCanFrame(can_frame);
-*/
+	*/
+}
+
+void MCAN::checkS88StateFrame(CanDevice device, uint16_t dev_id, uint16_t contact_id){
+
+	MCANMSG can_frame;
+
+	can_frame.cmd = S88_EVENT;
+	can_frame.resp_bit = 0;
+	can_frame.hash = device.hash;
+	can_frame.dlc = 4;
+	can_frame.data[0] = dev_id >> 8;
+	can_frame.data[1] = dev_id;
+	can_frame.data[2] = contact_id >> 8;
+	can_frame.data[3] = contact_id;
+	sendCanFrame(can_frame);
 }
 
 MCANMSG MCAN::getCanFrame(){
