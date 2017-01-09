@@ -25,7 +25,7 @@ Das Projekt ist noch im Anfangsstadium. Es ist also mit Veränderungen in relati
 
 #### Bestückung der AddOn Platinen
 
-![img_pcb](/CAN-Relais/board/MäCAN-I-O-AddOn-PCB.png)
+![img_pcb](/CAN-Relais/board/MäCAN-Relais-AddOn-PCB.png)
 * Die Stifleisten unter IC2 & IC3 werden nicht bestückt.
 
 * Die Hardware-Adresse der AddOn Platinen wird über die Jumper A0, A1 und A2 festgelegt. Der Status (GND = 0 / +5V = 1) der Hardware Address Pins ergeben folgende Adressen:
@@ -49,10 +49,10 @@ Das Projekt ist noch im Anfangsstadium. Es ist also mit Veränderungen in relati
 * ggf. base_address anpassen.
 * in void config_own_adresses_manual() kann die Konfiguration der Adressen & Magnetartikeltypen manuell angepasst werden.
 
-##### Screenshots
+#### Screenshots
 
 
-##### Wichtige Hinweise
+#### Wichtige Hinweise
 
 * Eine Änderung des Protokoll wirkt sich auf alle angeschlossenen Magnetartikel aus.
-* Die Relais können über 18V Gleisspannung oder per externem Netzteil versogrt werden.
+* Die Relais können über 18V Gleisspannung oder per externem Netzteil versorgt werden.

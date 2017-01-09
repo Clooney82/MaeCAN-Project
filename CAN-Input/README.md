@@ -69,11 +69,11 @@ Das Projekt ist noch im Anfangsstadium. Es ist also mit Veränderungen in relati
 * ggf. base_address anpassen.
 * in void config_own_adresses_manual() kann die Konfiguration der Adressen & Magnetartikeltypen manuell angepasst werden.
 
-##### Screenshots
+#### Screenshots
 
 ![img1](/images/Input_config_1.png)
 ![img2](/images/Input_config_2.png)
 
-##### Wichtige Hinweise
+#### Wichtige Hinweise
 
  * Eine Änderung des Protokoll wirkt sich auf alle angeschlossenen Magnetartikel aus.
