@@ -6,7 +6,7 @@
  *  Do with this whatever you want, but keep thes Header and tell
  *  the others what you changed!
  *
- *  Last edited: 2016-11-14
+ *  Last edited: 2017-01-09
  */
 
 /******************************************************************************
@@ -46,20 +46,13 @@
  * Modul   = (20+(6*i))
  * ========================================================================
  ******************************************************************************/
-
+#define VERS_HIGH 0       //Versionsnummer vor dem Punkt
+#define VERS_LOW  2       //Versionsnummer nach dem Punkt
 /******************************************************************************
  * Allgemeine Setup Daten:
  ******************************************************************************/
-#define VERS_HIGH 0       //Versionsnummer vor dem Punkt
-#define VERS_LOW  2       //Versionsnummer nach dem Punkt
 #define BOARD_NUM 1       //Identifikationsnummer des Boards (Anzeige in der CS2)
 #define UID 0x10052021    //CAN-UID
-// UID = 0x1 device.type VERS_HIGH VERS_LOW BOARD_NUM
-//#define MCAN_MAGNET  0x0050
-//#define MCAN_SERVO  0x0051
-//#define MCAN_RELAIS 0x0052
-//#define MCAN_STELLPULT 0x0053
-//#define MCAN_S88_GBS 0x0054
 
 const uint8_t USE_ONBOARD = 1;       // On-Board Ausgänge benutzen: 0 = Nein; 1 = Ja
 const uint8_t ANZ_ADDONS  = 2;       // Anzahl AddOn Platinen (max 8)
@@ -69,12 +62,28 @@ const uint8_t ANZ_ACC_PER_ADDON = 8; // Anzahl an Ausgängen pro AddOn Platine: 
                                       // => Weichen mit Lagerückmeldung = 5 (aktuelle AddOn-HW unterstützt dies noch nicht.)
                                       // ==>> evtl. ab AddOn-HW Rev. c
 
+int base_address = 0;          // => Basisadresse ( x = base_address + 1 ) für die initiale Adresskonfiguration (see config_own_adresses_manual() )
+                               // => base_address =   0 ===> 1, 2, 3, 4, ...
+                               // => base_address = 100 ===> 101, 102, 103, 104, ...
+
+/******************************************************************************
+ * Debugging einschalten
+ ******************************************************************************/
+//#define DEBUG
+//#define DEBUG2
+
 /******************************************************************************
 * Allgemeine Konstanten:
 ******************************************************************************/
+#define RED   0
+#define GREEN 1
+#define POWER_ON  1
+#define POWER_OFF 0
+
 const int REG_SWITCHMODE = 5;
 const int REG_SWITCHTIME = 6;
 const int REG_PROT = 9;         // Protokoll - Global für alle ACC gleich.
+
 const String string1 = "Adresse Ausgang ";
 const String string2 = "_1_2048";
 String string3;
@@ -103,7 +112,6 @@ unsigned long currentMillis = 0;
 const long interval = 1000;
 bool state_LED = false;
 
-//#define DEBUG
 
 /******************************************************************************
  * Variablen der Magnetartikel:
@@ -140,8 +148,12 @@ void setup() {
   uid_mat[3] = UID;
 
   if( (EEPROM.read(1)==uid_mat[0]) && (EEPROM.read(2)==uid_mat[1]) && (EEPROM.read(3)==uid_mat[2]) && (EEPROM.read(4)==uid_mat[3]) ){
+    #ifdef DEBUG
+      Serial.println("UID is already set or has not changed => no initial Setup needed.");
+    #endif
   } else {
     #ifdef DEBUG
+      Serial.println("UID not set or has changed.");
       Serial.print("Initital Setup of EEPROM");
     #endif
     EEPROM.put(0, 0);
@@ -187,18 +199,26 @@ void setup() {
     NUM_ACCs = NUM_ACCs + 4;
   }
   CONFIG_NUM = start_adrs_channel + NUM_ACCs - 1;
+  #ifdef DEBUG
+    Serial.print("Number of RMs: ");
+    Serial.println(NUM_ACCs);
+  #endif
 
   setup_acc();
-
+  signal_setup_successfull();
+  
   #ifdef DEBUG
-    Serial.print("Initial CAN-Bus");
+    Serial.println("Initiate CAN-Bus with debugging option");
+    mcan.initMCAN(true);       // debugging
+  #else
+    mcan.initMCAN();       // no debugging
   #endif
-  mcan.initMCAN();
   attachInterrupt(digitalPinToInterrupt(2), interruptFn, LOW);
   #ifdef DEBUG
     Serial.println("...completed.");
   #endif
 
+  signal_setup_successfull();
   state_LED = 1;
   digitalWrite(9,state_LED);
   #ifdef DEBUG
@@ -225,6 +245,21 @@ void setup_acc() {
     acc_articles[num].reg_locid = (20+(6*(num+1))-5);
     acc_articles[num].locID = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
     acc_articles[num].adrs_channel = num + start_adrs_channel;
+    #ifdef DEBUG2
+      Serial.println();
+      Serial.print("Setup ACC# ");
+      Serial.println(num);
+      Serial.print("-> Modul: ");
+      Serial.println(acc_articles[num].Modul);
+      Serial.print("-> Local-ID: ");
+      Serial.println(acc_articles[num].locID);
+      Serial.print("-> Adresse: ");
+      Serial.println(mcan.getadrs(prot, acc_articles[num].locID));
+      Serial.print("-> Pin GREEN: ");
+      Serial.println(acc_articles[num].pin_grn);
+      Serial.print("-> Pin RED  : ");
+      Serial.println(acc_articles[num].pin_red);
+    #endif
     num++;
 
     acc_articles[num].Modul = 0;
@@ -233,6 +268,21 @@ void setup_acc() {
     acc_articles[num].reg_locid = (20+(6*(num+1))-5);
     acc_articles[num].locID = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
     acc_articles[num].adrs_channel = num + start_adrs_channel;
+    #ifdef DEBUG2
+      Serial.println();
+      Serial.print("Setup ACC# ");
+      Serial.println(num);
+      Serial.print("-> Modul: ");
+      Serial.println(acc_articles[num].Modul);
+      Serial.print("-> Local-ID: ");
+      Serial.println(acc_articles[num].locID);
+      Serial.print("-> Adresse: ");
+      Serial.println(mcan.getadrs(prot, acc_articles[num].locID));
+      Serial.print("-> Pin GREEN: ");
+      Serial.println(acc_articles[num].pin_grn);
+      Serial.print("-> Pin RED  : ");
+      Serial.println(acc_articles[num].pin_red);
+    #endif
     num++;
 
     acc_articles[num].Modul = 0;
@@ -241,6 +291,21 @@ void setup_acc() {
     acc_articles[num].reg_locid = (20+(6*(num+1))-5);
     acc_articles[num].locID = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
     acc_articles[num].adrs_channel = num + start_adrs_channel;
+    #ifdef DEBUG2
+      Serial.println();
+      Serial.print("Setup ACC# ");
+      Serial.println(num);
+      Serial.print("-> Modul: ");
+      Serial.println(acc_articles[num].Modul);
+      Serial.print("-> Local-ID: ");
+      Serial.println(acc_articles[num].locID);
+      Serial.print("-> Adresse: ");
+      Serial.println(mcan.getadrs(prot, acc_articles[num].locID));
+      Serial.print("-> Pin GREEN: ");
+      Serial.println(acc_articles[num].pin_grn);
+      Serial.print("-> Pin RED  : ");
+      Serial.println(acc_articles[num].pin_red);
+    #endif
     num++;
 
     acc_articles[num].Modul = 0;
@@ -249,6 +314,21 @@ void setup_acc() {
     acc_articles[num].reg_locid = (20+(6*(num+1))-5);
     acc_articles[num].locID = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
     acc_articles[num].adrs_channel = num + start_adrs_channel;
+    #ifdef DEBUG2
+      Serial.println();
+      Serial.print("Setup ACC# ");
+      Serial.println(num);
+      Serial.print("-> Modul: ");
+      Serial.println(acc_articles[num].Modul);
+      Serial.print("-> Local-ID: ");
+      Serial.println(acc_articles[num].locID);
+      Serial.print("-> Adresse: ");
+      Serial.println(mcan.getadrs(prot, acc_articles[num].locID));
+      Serial.print("-> Pin GREEN: ");
+      Serial.println(acc_articles[num].pin_grn);
+      Serial.print("-> Pin RED  : ");
+      Serial.println(acc_articles[num].pin_red);
+    #endif
     num++;
     for(int i = 0; i < 4; i++){
       pinMode(acc_articles[i].pin_red, OUTPUT);
@@ -274,6 +354,25 @@ void setup_acc() {
         acc_articles[num].reg_locid = (20+(6*(num+1))-5);
         acc_articles[num].locID = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
         acc_articles[num].adrs_channel = num + start_adrs_channel;
+        #ifdef DEBUG2
+          Serial.println();
+          Serial.print("Setup ACC# ");
+          Serial.println(num);
+          Serial.print("-> Modul: ");
+          Serial.println(acc_articles[num].Modul);
+          Serial.print("-> Local-ID: ");
+          Serial.println(acc_articles[num].locID);
+          Serial.print("-> Adresse: ");
+          Serial.println(mcan.getadrs(prot, acc_articles[num].locID));
+          Serial.print("-> Pin GREEN: ");
+          Serial.println(acc_articles[num].pin_grn);
+          Serial.print("-> Pin RED  : ");
+          Serial.println(acc_articles[num].pin_red);
+          Serial.print("-> Pin GREEN LED: ");
+          Serial.println(acc_articles[num].pin_grn);
+          Serial.print("-> Pin RED   LED: ");
+          Serial.println(acc_articles[num].pin_red);
+        #endif
         num++;
       }
     }
@@ -282,12 +381,15 @@ void setup_acc() {
   if (EEPROM.read(0) == 0) {
     EEPROM.put(0, 1);
     for(int i = 0; i < NUM_ACCs; i++) {
+      /*
       uint16_t adrsss = i + 97;
       acc_articles[i].locID = mcan.generateLocId(prot, adrsss );
       byte locid_high = acc_articles[i].locID >> 8;
       byte locid_low = acc_articles[i].locID;
       EEPROM.put(acc_articles[i].reg_locid, locid_high);
       EEPROM.put(acc_articles[i].reg_locid + 1, locid_low);
+      */
+      config_own_adresses_manual();
     }
   }
   #ifdef DEBUG
@@ -295,6 +397,119 @@ void setup_acc() {
   #endif
   signal_setup_successfull();
 
+}
+
+void config_own_adresses_manual(){
+  uint16_t adrsss;
+  for(int i = 0; i < NUM_ACCs; i++) {
+    switch (i) {
+    case 0:
+      adrsss = base_address + i;
+      break;
+    case 1:
+      adrsss = base_address + i;
+      break;
+    case 2:
+      adrsss = base_address + i;
+      break;
+    case 3:
+      adrsss = base_address + i;
+      break;
+    case 4:
+      adrsss = base_address + i;
+      break;
+    case 5:
+      adrsss = base_address + i;
+      break;
+    case 6:
+      adrsss = base_address + i;
+      break;
+    case 7:
+      adrsss = base_address + i;
+      break;
+    case 8:
+      adrsss = base_address + i;
+      break;
+    case 9:
+      adrsss = base_address + i;
+      break;
+    case 10:
+      adrsss = base_address + i;
+      break;
+    case 11:
+      adrsss = base_address + i;
+      break;
+    case 12:
+      adrsss = base_address + i;
+      break;
+    case 13:
+      adrsss = base_address + i;
+      break;
+    case 14:
+      adrsss = base_address + i;
+      break;
+    case 15:
+      adrsss = base_address + i;
+      break;
+    case 16:
+      adrsss = base_address + i;
+      break;
+    case 17:
+      adrsss = base_address + i;
+      break;
+    case 18:
+      adrsss = base_address + i;
+      break;
+    case 19:
+      adrsss = base_address + i;
+      break;
+    case 20:
+      adrsss = base_address + i;
+      break;
+    case 21:
+      adrsss = base_address + i;
+      break;
+    case 22:
+      adrsss = base_address + i;
+      break;
+    case 23:
+      adrsss = base_address + i;
+      break;
+    case 24:
+      adrsss = base_address + i;
+      break;
+    case 25:
+      adrsss = base_address + i;
+      break;
+    case 26:
+      adrsss = base_address + i;
+      break;
+    case 27:
+      adrsss = base_address + i;
+      break;
+    case 28:
+      adrsss = base_address + i;
+      break;
+    case 29:
+      adrsss = base_address + i;
+      break;
+    case 30:
+      adrsss = base_address + i;
+      break;
+    case 31:
+      adrsss = base_address + i;
+      break;
+    default:
+      adrsss = base_address + i;
+      break;
+    }
+    acc_articles[i].locID = mcan.generateLocId(prot, adrsss );
+    byte locid_high = acc_articles[i].locID >> 8;
+    byte locid_low = acc_articles[i].locID;
+    EEPROM.put(acc_articles[i].reg_locid, locid_high);
+    EEPROM.put(acc_articles[i].reg_locid + 1, locid_low);
+  }
+  
 }
 
 /*
@@ -315,88 +530,16 @@ void change_prot(){
 }
 
 /*
- *
+ *  Erfolgreiches Setup signalisieren
  */
 void signal_setup_successfull(){
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
-  state_LED = !state_LED;
-  digitalWrite(9,state_LED);
-  delay(100);
+  for(int i=0; i < 20; i++){
+    state_LED = !state_LED;
+    digitalWrite(9,state_LED);
+    delay(100);
+  }
 }
+
 
 /*
  * Funktion zum schalten der Ausgänge
