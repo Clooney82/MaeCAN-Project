@@ -4,7 +4,7 @@
  *  Do with this whatever you want, but keep thes Header and tell
  *  the others what you changed!
  *
- *  Last changed: 2017-01-06
+ *  Last changed: 2017-01-09
  */
 
 
@@ -14,6 +14,7 @@
 #include <EEPROM.h>
 
 MCP_CAN can(10);
+bool mcan_debug = 0;
 
 uint16_t MCAN::generateHash(uint32_t uid){
 
@@ -41,7 +42,10 @@ uint16_t MCAN::getadrs(uint16_t prot, uint16_t locid){
 
 void MCAN::initMCAN(bool debug){
 
-	if(debug) Serial.begin(250000);
+	if(debug) {
+		//Serial.begin(250000);
+		mcan_debug = 1;
+  }
 	pinMode(9,OUTPUT);
 	digitalWrite(9,0);
 	if (can.begin(CAN_250KBPS) == CAN_OK){
@@ -65,7 +69,7 @@ void MCAN::sendCanFrame(MCANMSG can_frame){
 	bitWrite(txId, 16, can_frame.resp_bit);
 
 	can.sendMsgBuf(txId, 1, can_frame.dlc, can_frame.data);
-	Serial.println(canFrameToString(can_frame, 1));
+	if(mcan_debug) Serial.println(canFrameToString(can_frame, 1));
 }
 
 void MCAN::sendDeviceInfo(CanDevice device, int configNum){
@@ -200,7 +204,7 @@ void MCAN::sendConfigInfoSlider(CanDevice device, uint8_t configChanel, uint16_t
 	sendCanFrame(can_frame);
 	can_frame.hash++;
 	frameCounter++;
-	Serial.println(frameCounter);
+	if(mcan_debug) Serial.println(frameCounter);
 
 	//Frames, die Strings enthalten:
 
@@ -325,7 +329,7 @@ MCANMSG MCAN::getCanFrame(){
 	can_frame.hash = rxId;
 	can_frame.resp_bit = bitRead(rxId, 16);
 
-	Serial.println(canFrameToString(can_frame, false));
+	if(mcan_debug) Serial.println(canFrameToString(can_frame, false));
 
 	return can_frame;
 }
@@ -347,7 +351,7 @@ void MCAN::saveConfigData(CanDevice device, MCANMSG can_frame){
 
 	int chanel = can_frame.data[5] - 1;
 
-	Serial.println("Saving Config Data...");
+	if(mcan_debug) Serial.println("Saving Config Data...");
 
 	//EEPROM.put((chanel*2), can_frame.data[6]);
 	//EEPROM.put((chanel*2) + 1, can_frame.data[7]);
