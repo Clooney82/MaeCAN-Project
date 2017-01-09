@@ -41,8 +41,8 @@ Das Projekt ist noch im Anfangsstadium. Es ist also mit Veränderungen in relati
 
 ##### Screenshots
 
-![img1](/images/Input_config_1)
-![img2](/images/Input_config_1)
+![img1](/images/Input_config_1.png)
+![img2](/images/Input_config_1.png)
 
 ##### Wichtige Hinweise
 
