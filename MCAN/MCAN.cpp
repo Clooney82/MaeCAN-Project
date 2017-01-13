@@ -50,7 +50,7 @@ void MCAN::initMCAN(bool debug){
 	digitalWrite(9,0);
 	if (can.begin(CAN_250KBPS) == CAN_OK){
 		digitalWrite(9,1);
-		Serial.println("CAN-Init Successfull!");
+		if(mcan_debug) Serial.println("CAN-Init Successfull!");
 	}
 }
 void MCAN::initMCAN(){
@@ -69,7 +69,7 @@ void MCAN::sendCanFrame(MCANMSG can_frame){
 	bitWrite(txId, 16, can_frame.resp_bit);
 
 	can.sendMsgBuf(txId, 1, can_frame.dlc, can_frame.data);
-	if(mcan_debug) Serial.println(canFrameToString(can_frame, 1));
+	Serial.println(canFrameToString(can_frame, 1));
 }
 
 void MCAN::sendDeviceInfo(CanDevice device, int configNum){
@@ -204,7 +204,6 @@ void MCAN::sendConfigInfoSlider(CanDevice device, uint8_t configChanel, uint16_t
 	sendCanFrame(can_frame);
 	can_frame.hash++;
 	frameCounter++;
-	if(mcan_debug) Serial.println(frameCounter);
 
 	//Frames, die Strings enthalten:
 
@@ -271,13 +270,7 @@ void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool
 	can_frame.data[3] = locId;
 	can_frame.data[4] = state;
 	can_frame.data[5] = 1;		//old value: 0
-
 	sendCanFrame(can_frame);
-	/*
-	delay(20);
-	can_frame.data[5] = 0;
-	sendCanFrame(can_frame);
-	*/
 }
 
 void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response, bool power){
@@ -293,15 +286,8 @@ void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool
 	can_frame.data[2] = locId >> 8;
 	can_frame.data[3] = locId;
 	can_frame.data[4] = state;
-//	can_frame.data[5] = 1;		//old value: 0
 	can_frame.data[5] = power;
-
 	sendCanFrame(can_frame);
-	/*
-	delay(20);
-	can_frame.data[5] = 0;
-	sendCanFrame(can_frame);
-	*/
 }
 
 void MCAN::checkS88StateFrame(CanDevice device, uint16_t dev_id, uint16_t contact_id){
@@ -329,7 +315,7 @@ MCANMSG MCAN::getCanFrame(){
 	can_frame.hash = rxId;
 	can_frame.resp_bit = bitRead(rxId, 16);
 
-	if(mcan_debug) Serial.println(canFrameToString(can_frame, false));
+	Serial.println(canFrameToString(can_frame, false));
 
 	return can_frame;
 }
@@ -351,7 +337,7 @@ void MCAN::saveConfigData(CanDevice device, MCANMSG can_frame){
 
 	int chanel = can_frame.data[5] - 1;
 
-	if(mcan_debug) Serial.println("Saving Config Data...");
+	Serial.println("Saving Config Data...");
 
 	//EEPROM.put((chanel*2), can_frame.data[6]);
 	//EEPROM.put((chanel*2) + 1, can_frame.data[7]);
