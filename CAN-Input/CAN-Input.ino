@@ -1,140 +1,158 @@
-/*
- * MäCAN-Stellpult AddOn, Software-Version 0.3
- *
- *  Created by Maximilian Goldschmidt <maxigoldschmidt@gmail.com>
- *  Modified by Jochen Kielkopf.
- *  Do with this whatever you want, but keep thes Header and tell
- *  the others what you changed!
- *
- *  Last edited: 2017-01-09
- */
-
 /******************************************************************************
- * Includes
+   MäCAN-Stellpult AddOn, Software-Version 0.4
+
+    Created by Maximilian Goldschmidt <maxigoldschmidt@gmail.com>
+    Modified by Jochen Kielkopf.
+    Do with this whatever you want, but keep thes Header and tell
+    the others what you changed!
+
+    Last edited: 2017-01-13
+ ******************************************************************************/
+/******************************************************************************
+   Includes
  ******************************************************************************/
 #include <MCAN.h>
 #include <EEPROM.h>
-#include <Wire.h>
 #include <Adafruit_MCP23017.h>
-
 /******************************************************************************
- * EEPROM-Register
- * # 0 - 20 -> CONFIG:
- * ------------------------------------------------------------------------
- *       0 -> Initial Config ( 0 = unkonfiguriert, 1 = konfiguriert )
- *  1 -  4 -> UID
- *       5 -> SWITCHMODE
- *  6 -  7 -> SWITCHTIME
- *       8 -> FEEDBACK
- *       9 -> PROTOKOLL
- * 10 - 19 -> reserved / free
- *      20 -> Anzahl ACCs
- * ========================================================================
- * #21 - XX -> Adressbereich, Pin, Modul (Max 167 ACCs):
- * ------------------------------------------------------------------------
- *  2 byte -> LocalID       // wird aktuell genutzt
- *  2 byte -> Adresse       // wird nicht aktuell genutzt
- *  1 byte -> Status        // wird nicht aktuell genutzt
- *  1 byte -> Modul ( 0 = Decoder, 1 = AddOn 1, 2 = AddOn 2 ) // wird nicht aktuell genutzt
- * ------------------------------------------------------------------------
- * ------------------------------------------------------------------------
- * Formeln zu Berechnung der Speicherregister
- * ------------------------------------------------------------------------
- * LocalID = (20+(6*i)-5) (20+(6*i)-4)    - acc_articles[num].reg_locid = (20+(6*(num+1))-5);
- * Adresse = (20+(6*i)-3) (20+(6*i)-2)    - not used
- * Status  = (20+(6*i)-1)                 - acc_articles[num].reg_state = (20+(6*(num+1))-1);
- * Typ     = (20+(6*i))                   - acc_articles[num].reg_type  = (20+(6*(num+1)));
- * ========================================================================
+   EEPROM-Register
+   # 0 - 20 -> CONFIG:
+   ------------------------------------------------------------------------
+    0 -  4 -> not used
+    5 -  8 -> UID
+         9 -> PROTOCOL
+        10 -> Initial Config ( 0 = unkonfiguriert, 1 = konfiguriert )
+   11 - 20 -> reserved / free
+   ========================================================================
+   #21 - XX -> Adressbereich, Pin, Modul (Max 167 ACCs):
+   ------------------------------------------------------------------------
+    2 byte -> LocalID       // wird aktuell genutzt
+    2 byte -> Adresse       // wird nicht aktuell genutzt
+    1 byte -> Status        // wird nicht aktuell genutzt
+    1 byte -> Modul ( 0 = Decoder, 1 = AddOn 1, 2 = AddOn 2 ) // wird nicht aktuell genutzt
+   ------------------------------------------------------------------------
+   ------------------------------------------------------------------------
+   Formeln zu Berechnung der Speicherregister
+   ------------------------------------------------------------------------
+   LocalID = (20+(6*i)-5) (20+(6*i)-4)    - acc_articles[num].reg_locid = (20+(6*(num+1))-5);
+   Adresse = (20+(6*i)-3) (20+(6*i)-2)    - not used
+   Status  = (20+(6*i)-1)                 - acc_articles[num].reg_state = (20+(6*(num+1))-1);
+   Typ     = (20+(6*i))                   - acc_articles[num].reg_type  = (20+(6*(num+1)));
+   ========================================================================
  ******************************************************************************/
 #define VERS_HIGH 0       // Versionsnummer vor dem Punkt
-#define VERS_LOW  3       // Versionsnummer nach dem Punkt
+#define VERS_LOW  4       // Versionsnummer nach dem Punkt
 /******************************************************************************
- * Allgemeine Setup Daten:
+   Allgemeine Setup Daten:
  ******************************************************************************/
 #define BOARD_NUM 1       // Identifikationsnummer des Boards (Anzeige in der CS2)
-#define UID 0x10053075    // CAN-UID (default) - please change!!!
+#define UID 0x12345678    // CAN-UID (default) - please change!!!
 
-const uint8_t USE_ONBOARD = 0;      // On-Board Ausgänge benutzen: 0 = Nein; 1 = Ja
-                                    // On-Board currently not supported
-const uint8_t ANZ_ADDONS = 6;       // Anzahl AddOn Platinen (max 8)
+const uint8_t ANZ_ADDONS = 1;       // Anzahl AddOn Platinen (max 8)
                                     // => Ohne LED_FEEDBACK: ab > 7 AddOns wird der Arbeitsspeicher knapp
-#define LED_FEEDBACK                 //
+
+#define LED_FEEDBACK                //
 
 #ifdef LED_FEEDBACK
-  const uint8_t ANZ_ACC_PER_ADDON = 4; // Anzahl an Ausgängen pro AddOn Platine: Default = 4
+  const uint8_t ANZ_ACC_PER_ADDON = 4;  // Anzahl an Ausgängen pro AddOn Platine: Default = 4
 #else
-  const uint8_t ANZ_ACC_PER_ADDON = 8; // Anzahl an Ausgängen pro AddOn Platine: Default = 8
+  const uint8_t ANZ_ACC_PER_ADDON = 8;  // Anzahl an Ausgängen pro AddOn Platine: Default = 8
 #endif
-                               // => Stellpult mit LED Anzeige = 4
-                               // => Stellpult ohne LED Anzeige = 8
-                               // => Relais = 8
-                               // => Weichen = 8
-                               // => Weichen mit Lagerückmeldung = 5 (aktuelle AddOn-HW unterstützt dies noch nicht.)
-                               // ==>> evtl. ab AddOn-HW Rev. c
+/*---------------------------------------
+ Anzahl an Ausgängen pro AddOn Platine:
+   => Stellpult mit LED Anzeige = 4
+   => Stellpult ohne LED Anzeige = 8
+   => Relais = 8
+   => Weichen = 8
+   => Weichen mit Lagerückmeldung = 5 (aktuelle AddOn-HW unterstützt dies noch nicht.)
+   ==>> evtl. ab AddOn-HW Rev. c
+ ---------------------------------------*/
 
-int base_address = 0;          // => Basisadresse ( x = base_address + 1 ) für die initiale Adresskonfiguration (see config_own_adresses_manual() )
-                               // => base_address =   0 ===> 1, 2, 3, 4, ...
-                               // => base_address = 100 ===> 101, 102, 103, 104, ...
-
+int base_address = 0;
+/*---------------------------------------
+ => Basisadresse ( x = base_address + 1 ) für die initiale Adresskonfiguration (see config_own_adresses_manual() )
+ => base_address =   0 ===> 1, 2, 3, 4, ...
+ => base_address = 100 ===> 101, 102, 103, 104, ...
+ ---------------------------------------*/
 /******************************************************************************
- * Debugging einschalten
+   Debugging einschalten
  ******************************************************************************/
-//#define DEBUG
-
+//#define DEBUG_SERIAL
+//#define DEBUG_SETUP
+//#define DEBUG_SETUP_ACC
+//#define DEBUG_CONFIG
+//#define DEBUG_LED
+//#define DEBUG_INPUT
+//#define DEBUG_MCAN
+//#define DEBUG_CAN
+//#define run_fake_acc_commands
 /******************************************************************************
-* Allgemeine Konstanten:
-******************************************************************************/
+   Allgemeine Konstanten:
+ ******************************************************************************/
 #define RED   0
 #define GREEN 1
 #define POWER_ON  1
 #define POWER_OFF 0
 #define BUTTON_PRESSED     1
 #define BUTTON_NOT_PRESSED 0
-const int REG_PROT = 9;     // Speicheradress für Protokoll - Global für alle ACC gleich.
-String string1 = "Adresse Ausgang ";
-String string2 = "_1_2048";
+#define TYPE_WEICHE 0
+#define TYPE_ENTKUPPLER 1
+
+#ifdef DEBUG_CONFIG
+  byte byteRead;
+  String stringRead;
+#endif
+#ifdef run_fake_acc_commands
+  uint8_t tmp = 0;
+#endif
+
+const uint8_t REG_UID  = 5;     // Speicheradress für UID - 4 bytes
+const uint8_t REG_PROT = 9;     // Speicheradress für Protokoll - Global für alle ACC gleich.
+String string1;
+String string2;
 String string3;
+String string4;
 
 int start_adrs_channel = 2;
 
 typedef struct {
+  int reg_locid;        // EEPROM-Register der Local-IDs
   uint16_t locID;       // LocalID
   uint8_t Modul;        // 0 = On-Board; 1 = Modul1; 2 = Modul2, ...
   uint8_t pin_grn;      // PIN Grün
   uint8_t pin_red;      // PIN Rot
-  int reg_locid;        // EEPROM-Register der Local-IDs
-  int adrs_channel;     // Konfigkanäle für die Adressen
-  bool pushed_red=0;
-  bool pushed_grn=0;
+  int reg_type;         // EEPROM-Register für die ACC Typen
+  bool acc_type  = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
+  unsigned long pushed  = 0;
   #ifdef LED_FEEDBACK
     uint8_t pin_led_grn;  // PIN Grün
     uint8_t pin_led_red;  // PIN Rot
     int reg_state;        // EEPROM-Register zum Speichern des Schaltzustand
-    bool state_is;        // ...
-    bool state_set;       // ...
-    bool power_is=0;
-    bool power_set=0;     // Strom ein-/ausschalten
+    bool state_is  = 0;   // ...
+    bool state_set = 0;   // ...
+    bool power_is  = 0;   // Strom ein-/aus
+    bool power_set = 0;   // Strom ein-/ausschalten
   #endif
-  bool acc_type=0;      // 0 = Weiche/Signal ; 1 = Entkuppler
-  int reg_type;         // EEPROM-Register für die ACC Typen
 } acc_Magnet;
 
-acc_Magnet acc_articles[ (4 * USE_ONBOARD) + (ANZ_ADDONS * ANZ_ACC_PER_ADDON) ]; // = 4 * USE_ONBOARD + ANZ_ACC_PER_ADDON * ANZ_ADDONS
+acc_Magnet acc_articles[ (ANZ_ADDONS * ANZ_ACC_PER_ADDON) ]; // = 4 * USE_ONBOARD + ANZ_ACC_PER_ADDON * ANZ_ADDONS
 
 Adafruit_MCP23017 AddOn[ANZ_ADDONS];   // Create AddOn
 
 uint8_t NUM_ACCs;
 
 unsigned long previousMillis = 0;
+unsigned long previousMillis_input = 0;
 unsigned long currentMillis = 0;
-const long interval = 1000;
+uint16_t interval = 1000;
+const uint16_t acc_interval = 500;
+const uint8_t input_interval = 100;
 bool state_LED = false;
 
 /******************************************************************************
- * Variablen der Magnetartikel:
+   Variablen der Magnetartikel:
  ******************************************************************************/
 uint8_t CONFIG_NUM;     //Anzahl der Konfigurationspunkte
-uint16_t hash;
 bool config_poll = false;
 byte uid_mat[4];
 uint8_t  config_index = 0;
@@ -143,8 +161,10 @@ uint16_t prot_old;
 bool pushed_red;
 bool pushed_grn;
 
+bool config_sent = false;
+bool locked = true;
 /******************************************************************************
- * Benötigtes:
+   Benötigtes:
  ******************************************************************************/
 MCAN mcan;
 MCANMSG can_frame_out;
@@ -153,279 +173,189 @@ MCANMSG can_frame_in;
 CanDevice device;
 
 /******************************************************************************
- * Setup
+   Setup
  ******************************************************************************/
+//#############################################################################
+// 
+//#############################################################################
 void setup() {
-  #ifdef DEBUG
-    Serial.begin(9600);
+  #ifdef DEBUG_SERIAL
+    //Serial.begin(9600);
+    Serial.begin(111520);
+
+    Serial.println("-----------------------------------");
+    Serial.println(" - Setup                         -");
+    Serial.println("-----------------------------------");
   #endif
   uid_mat[0] = UID >> 24;
   uid_mat[1] = UID >> 16;
   uid_mat[2] = UID >> 8;
   uid_mat[3] = UID;
 
-  if( (EEPROM.read(1)==uid_mat[0]) && (EEPROM.read(2)==uid_mat[1]) && (EEPROM.read(3)==uid_mat[2]) && (EEPROM.read(4)==uid_mat[3]) ){
+  if( (EEPROM.read(5)==uid_mat[0]) && 
+      (EEPROM.read(6)==uid_mat[1]) && 
+      (EEPROM.read(7)==uid_mat[2]) && 
+      (EEPROM.read(8)==uid_mat[3]) ){
+    #ifdef DEBUG_SETUP
+      Serial.println(" - UID was not changed: No Setup of EEPROM needed.");
+    #endif
   } else {
-    #ifdef DEBUG
-      Serial.print("Initital Setup of EEPROM");
+    #ifdef DEBUG_SETUP
+      Serial.println(" - UID was changed: Initital Setup of EEPROM");
     #endif
-    EEPROM.put(0, 0);
-    EEPROM.put(1, uid_mat[0]);
-    EEPROM.put(2, uid_mat[1]);
-    EEPROM.put(3, uid_mat[2]);
-    EEPROM.put(4, uid_mat[3]);
+    EEPROM.put(10, 0);
+    EEPROM.put(REG_UID  , uid_mat[0]);
+    EEPROM.put(REG_UID+1, uid_mat[1]);
+    EEPROM.put(REG_UID+2, uid_mat[2]);
+    EEPROM.put(REG_UID+3, uid_mat[3]);
     EEPROM.put(REG_PROT, 1);    // 0 = DCC, 1=MM
-    #ifdef DEBUG
-      Serial.println("...completed.");
-    #endif
   }
 
   pinMode(9, OUTPUT);
-  digitalWrite(9,state_LED);
-  hash = mcan.generateHash(UID);
+  digitalWrite(9, state_LED);
 
-  //Geräteinformationen:
+
   device.versHigh = VERS_HIGH;
   device.versLow = VERS_LOW;
-  device.hash = hash;
+  device.hash = mcan.generateHash(UID);
   device.uid = UID;
-  device.artNum = "MäCAN-0053";
+  device.artNum = "00053";   // 8 byte
   device.name = "MäCAN Stellpult";
   device.boardNum = BOARD_NUM;
   device.type = MCAN_STELLPULT;
 
-  if(!EEPROM.read(REG_PROT)){
+
+  if (!EEPROM.read(REG_PROT)) {
     prot = DCC_ACC;
-  }else{
+  } else {
     prot = MM_ACC;
   }
   prot_old = prot;
 
   NUM_ACCs = ANZ_ACC_PER_ADDON * ANZ_ADDONS;
-  #ifdef DEBUG
-    Serial.print("Num ACCs: ");
-    Serial.println(NUM_ACCs);
-  #endif
-  if(USE_ONBOARD == 1){
-    NUM_ACCs = NUM_ACCs + 2;
-  }
-  #ifdef DEBUG
-    Serial.print("Num ACCs: ");
-    Serial.println(NUM_ACCs);
-  #endif
+  
+  // mit Entkuppler:
   CONFIG_NUM = start_adrs_channel + ( 2 * NUM_ACCs ) - 1;
-  #ifdef DEBUG
-    Serial.print("Config Num: ");
-    Serial.println(CONFIG_NUM);
-  #endif
 
   setup_acc();
   #ifdef LED_FEEDBACK
     test_leds();
-  #endif
-  
-  #ifdef DEBUG
-    Serial.print("Initial CAN-Bus");
-  #endif
-  mcan.initMCAN(true);
-  attachInterrupt(digitalPinToInterrupt(2), interruptFn, LOW);
-  #ifdef DEBUG
-    Serial.println("...completed.");
+    restore_last_state();
   #endif
 
-#ifdef LED_FEEDBACK
-  #ifdef DEBUG
-    Serial.print("Restoring previous Acc states.");
+  #ifdef DEBUG_MCAN
+    //mcan.initMCAN(true);
+    mcan.initMCAN();
+  #else
+    mcan.initMCAN();
   #endif
-  restore_last_state();
-  #ifdef DEBUG
-    Serial.println(" ...  completed.");
-  #endif
-#endif
   
-  state_LED = 1;
-  digitalWrite(9,state_LED);
-  #ifdef DEBUG
-    Serial.println("Setup completed.");
-    Serial.println("Device is now ready...");
+  #ifdef DEBUG_SERIAL
+    Serial.println("-----------------------------------");
+    Serial.println(" - Setup completed               -");
+    Serial.println("-----------------------------------");
+    Serial.print(" - Board-UID:  ");
+    Serial.println(UID);
+    Serial.print(" - Board-Num:  ");
+    Serial.println(BOARD_NUM);
+    Serial.print(" - Config Num: ");
+    Serial.println(CONFIG_NUM);
+    Serial.print(" - Num ACCs:   ");
+    Serial.println(NUM_ACCs);
+    Serial.println("-----------------------------------");
+    Serial.println(" - Device is now ready...        -");
     Serial.println("-----------------------------------");
   #endif
-
+  attachInterrupt(digitalPinToInterrupt(2), interruptFn, LOW);
+  state_LED = 1;
+  digitalWrite(9, state_LED);
 }
 
-/*
- * Setup Funktion zum Einrichten der ACCs
- */
-void setup_acc() {
-  #ifdef DEBUG
-    Serial.print("Setting up Accs");
+
+//#############################################################################
+// Setup Funktion zum Einrichten der ACCs
+//#############################################################################
+//-----------------------------------------------------------------------------
+// alt:      acc_articles[num].adrs_channel = num + start_adrs_channel;
+// neu:      acc_articles[num].adrs_channel = (2*num) + start_adrs_channel;
+// start = 2
+// num = 0
+// 
+// Acc_Num > Config_Index && Config_Indes => Acc_Num
+// ( 0 * 2) + 2 =  2       =>  2 / 2 - 1 = 0
+//                         =>  3 / 2 - 1 = 0
+// ( 1 * 2) + 2 =  4       =>  4 / 2 - 1 = 1
+//                         =>  5 / 2 - 1 = 1
+// ( 2 * 2) + 2 =  6       =>  6 / 2 - 1 = 2
+//                         =>  7 / 2 - 1 = 2
+// ( 3 * 2) + 2 =  8       =>  8 / 2 - 1 = 3
+//                         =>  9 / 2 - 1 = 3
+// ( 4 * 2) + 2 = 10       => 10 / 2 - 1 = 4
+//       ...
+//                16       => 16 / 2 = 8
+//                17       => 17 / 2 = 8
+//-----------------------------------------------------------------------------
+void setup_acc(){
+  //**************************************************************************************************
+  // START - Setup ACCs
+  //**************************************************************************************************
+  #ifdef DEBUG_SETUP
+    Serial.print(millis());
+    Serial.println(" - Setting up Accs");
+    Serial.println("-----------------------------------");
   #endif
-  // setup mainboard pins
-  int num = 0;
-  if(USE_ONBOARD == 1){
-    acc_articles[num].Modul = 0;
-    acc_articles[num].pin_grn = 0;
-    acc_articles[num].pin_red = 1;
-    acc_articles[num].reg_locid = (20+(6*(num+1))-5);
-    acc_articles[num].locID = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
-    acc_articles[num].adrs_channel = num + start_adrs_channel;
-    #ifdef LED_FEEDBACK
-      acc_articles[num].reg_state = (20+(6*(num+1))-1);
-      acc_articles[num].state_is = EEPROM.read( acc_articles[num].reg_state );
-      acc_articles[num].state_set = acc_articles[num].state_is;
+  //--------------------------------------------------------------------------------------------------
+  // Load Default Values
+  //--------------------------------------------------------------------------------------------------
+  if (EEPROM.read(10) == 0) {
+    EEPROM.put(10, 1);
+    #ifdef DEBUG_SETUP
+      Serial.print(millis());
+      Serial.println(" - ACC Setup not done.");
+      Serial.print(millis());
+      Serial.println(" - Loading default values.");
     #endif
-    acc_articles[num].reg_type = (20+(6*(num+1)));
-    acc_articles[num].acc_type = EEPROM.read( acc_articles[num].reg_type );
-    #ifdef DEBUG2
-      Serial.println();
-      Serial.print("Setup ACC# ");
-      Serial.println(num);
-      Serial.print("-> Modul: ");
-      Serial.println(acc_articles[num].Modul);
-      Serial.print("-> Local-ID: ");
-      Serial.println(acc_articles[num].locID);
-      Serial.print("-> Adresse: ");
-      Serial.println(mcan.getadrs(prot, acc_articles[num].locID));
-      Serial.print("-> Pin GREEN: ");
-      Serial.println(acc_articles[num].pin_grn);
-      Serial.print("-> Pin RED  : ");
-      Serial.println(acc_articles[num].pin_red);
-    #endif
-    num++;
-    acc_articles[num].Modul = 0;
-    acc_articles[num].pin_grn = 3;
-    acc_articles[num].pin_red = 4;
-    acc_articles[num].reg_locid = (20+(6*(num+1))-5);
-    acc_articles[num].locID = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
-    acc_articles[num].adrs_channel = num + start_adrs_channel;
-    #ifdef LED_FEEDBACK
-      acc_articles[num].reg_state = (20+(6*(num+1))-1);
-      acc_articles[num].state_is = EEPROM.read( acc_articles[num].reg_state );
-      acc_articles[num].state_set = acc_articles[num].state_is;
-    #endif
-    acc_articles[num].reg_type = (20+(6*(num+1)));
-    acc_articles[num].acc_type = EEPROM.read( acc_articles[num].reg_type );
-    #ifdef DEBUG2
-      Serial.println();
-      Serial.print("Setup ACC# ");
-      Serial.println(num);
-      Serial.print("-> Modul: ");
-      Serial.println(acc_articles[num].Modul);
-      Serial.print("-> Local-ID: ");
-      Serial.println(acc_articles[num].locID);
-      Serial.print("-> Adresse: ");
-      Serial.println(mcan.getadrs(prot, acc_articles[num].locID));
-      Serial.print("-> Pin GREEN: ");
-      Serial.println(acc_articles[num].pin_grn);
-      Serial.print("-> Pin RED  : ");
-      Serial.println(acc_articles[num].pin_red);
-    #endif
-    num++;
-    acc_articles[num].Modul = 0;
-    acc_articles[num].pin_grn = 5;
-    acc_articles[num].pin_red = 6;
-    acc_articles[num].reg_locid = (20+(6*(num+1))-5);
-    acc_articles[num].locID = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
-    acc_articles[num].adrs_channel = num + start_adrs_channel;
-    #ifdef LED_FEEDBACK
-      acc_articles[num].reg_state = (20+(6*(num+1))-1);
-      acc_articles[num].state_is = EEPROM.read( acc_articles[num].reg_state );
-      acc_articles[num].state_set = acc_articles[num].state_is;
-    #endif
-    acc_articles[num].reg_type = (20+(6*(num+1)));
-    acc_articles[num].acc_type = EEPROM.read( acc_articles[num].reg_type );
-    #ifdef DEBUG2
-      Serial.println();
-      Serial.print("Setup ACC# ");
-      Serial.println(num);
-      Serial.print("-> Modul: ");
-      Serial.println(acc_articles[num].Modul);
-      Serial.print("-> Local-ID: ");
-      Serial.println(acc_articles[num].locID);
-      Serial.print("-> Adresse: ");
-      Serial.println(mcan.getadrs(prot, acc_articles[num].locID));
-      Serial.print("-> Pin GREEN: ");
-      Serial.println(acc_articles[num].pin_grn);
-      Serial.print("-> Pin RED  : ");
-      Serial.println(acc_articles[num].pin_red);
-    #endif
-    num++;
-    acc_articles[num].Modul = 0;
-    acc_articles[num].pin_grn = 7;
-    acc_articles[num].pin_red = 8;
-    acc_articles[num].reg_locid = (20+(6*(num+1))-5);
-    acc_articles[num].locID = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
-    acc_articles[num].adrs_channel = num + start_adrs_channel;
-    #ifdef LED_FEEDBACK
-      acc_articles[num].reg_state = (20+(6*(num+1))-1);
-      acc_articles[num].state_is = EEPROM.read( acc_articles[num].reg_state );
-      acc_articles[num].state_set = acc_articles[num].state_is;
-    #endif
-    acc_articles[num].reg_type = (20+(6*(num+1)));
-    acc_articles[num].acc_type = EEPROM.read( acc_articles[num].reg_type );
-    #ifdef DEBUG2
-      Serial.println();
-      Serial.print("Setup ACC# ");
-      Serial.println(num);
-      Serial.print("-> Modul: ");
-      Serial.println(acc_articles[num].Modul);
-      Serial.print("-> Local-ID: ");
-      Serial.println(acc_articles[num].locID);
-      Serial.print("-> Adresse: ");
-      Serial.println(mcan.getadrs(prot, acc_articles[num].locID));
-      Serial.print("-> Pin GREEN: ");
-      Serial.println(acc_articles[num].pin_grn);
-      Serial.print("-> PIN RED: ");
-      Serial.println(acc_articles[num].pin_red);
-    #endif
-    num++;
-    for(int i = 0; i < 4; i++){
-      pinMode(acc_articles[i].pin_red, INPUT);
-      digitalWrite(acc_articles[i].pin_red, HIGH);   // Activate Internal Pull-Up Resistor
-      pinMode(acc_articles[i].pin_grn, INPUT);
-      digitalWrite(acc_articles[i].pin_grn, HIGH);   // Activate Internal Pull-Up Resistor
-    }
-
+    //for (int i = 20; i < 1024; i++) EEPROM.put(i,0);
+    config_own_adresses_manual();
   }
-
-  if(ANZ_ADDONS > 0){
-    for(int m = 0; m < ANZ_ADDONS; m++){
+  //--------------------------------------------------------------------------------------------------
+  // Setup PINs
+  //--------------------------------------------------------------------------------------------------
+  int num = 0;
+  if (ANZ_ADDONS > 0) {
+    for (int m = 0; m < ANZ_ADDONS; m++) {
       AddOn[m].begin(m);
       int pin = 0;
-      for(int i = 0; i < ANZ_ACC_PER_ADDON; i++){
-        acc_articles[num].Modul = m + 1;
+      for (int i = 0; i < ANZ_ACC_PER_ADDON; i++) {
+        acc_articles[num].Modul = m;
         acc_articles[num].pin_grn = pin;
-        #ifdef LED_FEEDBACK
-          acc_articles[num].pin_led_grn = pin + 8;
-        #endif
         pin++;
         acc_articles[num].pin_red = pin;
-        #ifdef LED_FEEDBACK
-          acc_articles[num].pin_led_red = pin + 8;
-        #endif
         pin++;
 
         AddOn[m].pinMode(acc_articles[num].pin_grn, INPUT);
         AddOn[m].pullUp(acc_articles[num].pin_grn, HIGH);   // Activate Internal Pull-Up Resistor
         AddOn[m].pinMode(acc_articles[num].pin_red, INPUT);
         AddOn[m].pullUp(acc_articles[num].pin_red, HIGH);   // Activate Internal Pull-Up Resistor
+        
+        acc_articles[num].reg_locid = (20 + (6 * (num + 1)) - 5);
+        acc_articles[num].locID     = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
+        acc_articles[num].reg_type  = (20 + (6 * (num + 1))    );
+        acc_articles[num].acc_type  = EEPROM.read( acc_articles[num].reg_type );
+        
         #ifdef LED_FEEDBACK
+          acc_articles[num].pin_led_grn = acc_articles[num].pin_grn + 8;
+          acc_articles[num].pin_led_red = acc_articles[num].pin_red + 8;
           AddOn[m].pinMode(acc_articles[num].pin_led_grn, OUTPUT);
           AddOn[m].pinMode(acc_articles[num].pin_led_red, OUTPUT);
-        #endif
 
-        acc_articles[num].reg_locid = (20+(6*(num+1))-5);
-        acc_articles[num].locID = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
-        acc_articles[num].adrs_channel = num + start_adrs_channel;
-        #ifdef LED_FEEDBACK
-          acc_articles[num].reg_state = (20+(6*(num+1))-1);
+          acc_articles[num].reg_state = (20 + (6 * (num + 1)) - 1);
           acc_articles[num].state_is = EEPROM.read( acc_articles[num].reg_state );
           acc_articles[num].state_set = acc_articles[num].state_is;
         #endif
-        acc_articles[num].reg_type = (20+(6*(num+1)));
-        acc_articles[num].acc_type = EEPROM.read( acc_articles[num].reg_type );
+        
 
-        #ifdef DEBUG2
+        #ifdef DEBUG_SETUP_ACC
           Serial.println();
           Serial.print("Setup ACC# ");
           Serial.println(num);
@@ -435,175 +365,165 @@ void setup_acc() {
           Serial.println(acc_articles[num].locID);
           Serial.print("-> Adresse: ");
           Serial.println(mcan.getadrs(prot, acc_articles[num].locID));
-          Serial.print("-> Pin GREEN: ");
-          Serial.println(acc_articles[num].pin_grn);
-          Serial.print("-> Pin RED  : ");
-          Serial.println(acc_articles[num].pin_red);
-          Serial.print("-> Pin GREEN LED: ");
-          Serial.println(acc_articles[num].pin_grn);
-          Serial.print("-> Pin RED   LED: ");
-          Serial.println(acc_articles[num].pin_red);
+          Serial.println("-----------------------------------");
         #endif
-
-
         num++;
       }
     }
   }
-
-  if (EEPROM.read(0) == 0) {
-    EEPROM.put(0, 1);
-    for(int i = 0; i < NUM_ACCs; i++) {
-      /*
-      uint16_t adrsss = i + 1;
-      acc_articles[i].locID = mcan.generateLocId(prot, adrsss );
-      byte locid_high = acc_articles[i].locID >> 8;
-      byte locid_low = acc_articles[i].locID;
-      EEPROM.put(acc_articles[i].reg_locid, locid_high);
-      EEPROM.put(acc_articles[i].reg_locid + 1, locid_low);
-      */
-      config_own_adresses_manual();
-    }
-  }
-  #ifdef DEBUG
-    Serial.println("...completed");
+  #ifdef DEBUG_SETUP
+    Serial.print(millis());
+    Serial.println(" - ...completed");
   #endif
   signal_setup_successfull();
-
+  
 }
 
-void config_own_adresses_manual(){
+
+//#############################################################################
+// Manuelles configurieren der Adressen, wenn sich UID ändert.
+//#############################################################################
+void config_own_adresses_manual() {
   uint16_t adrsss;
-  for(int i = 0; i < NUM_ACCs; i++) {
+  for (int i = 0; i < NUM_ACCs; i++) {
+    acc_articles[i].reg_locid = (20 + (6 * (i + 1)) - 5);
+    #ifdef LED_FEEDBACK
+      acc_articles[i].reg_state = (20 + (6 * (i + 1)) - 1);
+    #endif
+    acc_articles[i].reg_type  = (20 + (6 * (i + 1))    );
     switch (i) {
-    case 0:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 1:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 2:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 3:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 4:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 5:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 6:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 7:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 8:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 9:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 10:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 11:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 12:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 13:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 14:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 15:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 16:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 17:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 18:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 19:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 20:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 21:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 22:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 23:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 24:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 25:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 26:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 27:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-      adrsss = base_address + i;
-      break;
-    case 28:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
-      adrsss = base_address + i;
-      break;
-    case 29:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
-      adrsss = base_address + i;
-      break;
-    case 30:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
-      adrsss = base_address + i;
-      break;
-    case 31:
-      acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
-      adrsss = base_address + i;
-      break;
+      case 0:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 1:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 2:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 3:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 4:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 5:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 6:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 7:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 8:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 9:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 10:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 11:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 12:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 13:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 14:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 15:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 16:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 17:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 18:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 19:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 20:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 21:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 22:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 23:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 24:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 25:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 26:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 27:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
+        adrsss = base_address + i;
+        break;
+      case 28:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
+        adrsss = base_address + i;
+        break;
+      case 29:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
+        adrsss = base_address + i;
+        break;
+      case 30:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
+        adrsss = base_address + i;
+        break;
+      case 31:
+        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
+        adrsss = base_address + i;
+        break;
+      default:
+        acc_articles[i].acc_type = 0;
+        adrsss = base_address + i;
+        break;
     }
     acc_articles[i].locID = mcan.generateLocId(prot, adrsss );
     byte locid_high = acc_articles[i].locID >> 8;
@@ -611,70 +531,105 @@ void config_own_adresses_manual(){
     EEPROM.put(acc_articles[i].reg_locid, locid_high);
     EEPROM.put(acc_articles[i].reg_locid + 1, locid_low);
     EEPROM.put(acc_articles[i].reg_type, acc_articles[i].acc_type);
+    #ifdef LED_FEEDBACK
+      acc_articles[i].state_is = 0;
+      EEPROM.put( acc_articles[i].reg_state, acc_articles[i].state_is);
+      acc_articles[i].state_set = acc_articles[i].state_is;
+      acc_articles[i].power_is = 0;
+      acc_articles[i].power_set = acc_articles[i].power_is;
+    #endif
   }
-  
+
 }
 
-/*
- *
- */
+
+//#############################################################################
+// Test aller LEDs
+//#############################################################################
 #ifdef LED_FEEDBACK
-void test_leds(){
+void test_leds() {
   for (int i = 0; i < NUM_ACCs; i++) {
-    if (acc_articles[i].Modul == 0) {
-      digitalWrite(acc_articles[i].pin_led_red, 1);
-      digitalWrite(acc_articles[i].pin_led_grn, 1);
-    } else if ( (acc_articles[i].Modul > 0) && (acc_articles[i].Modul <= 8) ) {
-      AddOn[acc_articles[i].Modul - 1].digitalWrite(acc_articles[i].pin_led_red, 1);
-      AddOn[acc_articles[i].Modul - 1].digitalWrite(acc_articles[i].pin_led_grn, 1);
-    }
+    AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_red, 1);
+    AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_grn, 1);
   }
-  delay(10000);
+  #ifndef DEBUG_SERIAL
+    delay(10000);
+  #endif
   for (int i = 0; i < NUM_ACCs; i++) {
-    if (acc_articles[i].Modul == 0) {
-      digitalWrite(acc_articles[i].pin_led_red, 0);
-      digitalWrite(acc_articles[i].pin_led_grn, 0);
-    } else if ( (acc_articles[i].Modul > 0) && (acc_articles[i].Modul <= 8) ) {
-      AddOn[acc_articles[i].Modul - 1].digitalWrite(acc_articles[i].pin_led_red, 0);
-      AddOn[acc_articles[i].Modul - 1].digitalWrite(acc_articles[i].pin_led_grn, 0);
-    }
+    AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_red, 0);
+    AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_grn, 0);
   }
 
 }
 #endif
 
-/*
- * 
- */
+
+//#############################################################################
+// Letzten Schaltzustand wiederherstellen.
+//#############################################################################
 #ifdef LED_FEEDBACK
 void restore_last_state() {
-  for(int i = 0; i < NUM_ACCs; i++){
-    if(acc_articles[i].Modul > 0){
-      if ( acc_articles[i].acc_type == 1 ) {
-        AddOn[acc_articles[i].Modul-1].digitalWrite(acc_articles[i].pin_led_red, LOW);
-        AddOn[acc_articles[i].Modul-1].digitalWrite(acc_articles[i].pin_led_grn, LOW);
-      } else {
-        switch (acc_articles[i].state_is) {
-          case 0:   // grün
-              AddOn[acc_articles[i].Modul-1].digitalWrite(acc_articles[i].pin_led_red, HIGH);
-              AddOn[acc_articles[i].Modul-1].digitalWrite(acc_articles[i].pin_led_grn, LOW);
-            break;
-          case 1:   // rot
-              AddOn[acc_articles[i].Modul-1].digitalWrite(acc_articles[i].pin_led_red, LOW);
-              AddOn[acc_articles[i].Modul-1].digitalWrite(acc_articles[i].pin_led_grn, HIGH);
-            break;
-        }
+  #ifdef DEBUG_SETUP
+    Serial.print(millis());
+    Serial.println(" - Restoring last LED Status:");
+  #endif
+  for (int i = 0; i < NUM_ACCs; i++) {
+    #ifdef DEBUG_SETUP_ACC
+      Serial.print(millis());
+      Serial.print(" - Adresse:");
+      Serial.print(mcan.getadrs(prot_old, acc_articles[i].locID));
+    #endif
+    if ( acc_articles[i].acc_type == 1 ) {
+      #ifdef DEBUG_SETUP_ACC
+        Serial.println(" (Entkuppler) - LEDs off.");
+      #endif
+      AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_red, LOW);
+      AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+    } else {
+      #ifdef DEBUG_SETUP_ACC
+        Serial.print(" (Weiche/Signal) - LED: ");
+      #endif
+      switch (acc_articles[i].state_is) {
+        case RED:   // rot
+          AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+          AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_red, HIGH);
+          #ifdef DEBUG_SETUP_ACC
+            Serial.println("RED: ON / green: off");
+          #endif
+          break;
+        case GREEN:   // grün
+          AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_red, LOW);
+          AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_grn, HIGH);
+          #ifdef DEBUG_SETUP_ACC
+            Serial.println("red: off / GREEN: ON");
+          #endif
+          break;
       }
     }
   }
 }
 #endif
 
-/*
- * Change LocalID when protocol has changed
- */
-void change_prot(){
-  for(int i = 0; i < NUM_ACCs; i++) {
+
+//#############################################################################
+// Change LocalID when protocol has changed
+//#############################################################################
+void change_prot() {
+  #ifdef DEBUG_CONFIG
+    Serial.print(millis());
+    Serial.print("Changing protocol from ");
+    if (prot_old == DCC_ACC ) {
+      Serial.print("DCC to ");
+    } else {
+      Serial.print("MM to ");
+    }
+    if (prot == DCC_ACC ) {
+      Serial.println("DCC");
+    } else {
+      Serial.println("MM");
+    }
+  #endif
+  for (int i = 0; i < NUM_ACCs; i++) {
     acc_articles[i].locID = (EEPROM.read( acc_articles[i].reg_locid ) << 8) | (EEPROM.read( acc_articles[i].reg_locid + 1 ));
     uint16_t adrsss = mcan.getadrs(prot_old, acc_articles[i].locID);
     acc_articles[i].locID = mcan.generateLocId(prot, adrsss );
@@ -687,202 +642,158 @@ void change_prot(){
 
 }
 
-/*
- *  Erfolgreiches Setup signalisieren
- */
-void signal_setup_successfull(){
-  for(int i=0; i < 20; i++){
+
+//#############################################################################
+// Erfolgreiches Setup signalisieren
+//#############################################################################
+void signal_setup_successfull() {
+  for (int i = 0; i < 20; i++) {
     state_LED = !state_LED;
-    digitalWrite(9,state_LED);
+    digitalWrite(9, state_LED);
     delay(100);
   }
 }
 
 
-/*
- * Funktion zum schalten der Ausgänge
- */
-#ifdef LED_FEEDBACK
-void switchAcc(int acc_num, bool set_state){
-  if(!set_state){                   // rot
-    if(acc_articles[acc_num].Modul == 0){
-      if(acc_articles[acc_num].acc_type == 0) {
-        digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
-        digitalWrite(9,0);
-        delay(20);
-        #ifdef DEBUG
-            Serial.print("Green: off / ");
-        #endif
-      }
-      digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
-      digitalWrite(9,1);
-        #ifdef DEBUG
-            Serial.println("Red: on");
-        #endif
-    } else if( (acc_articles[acc_num].Modul > 0) && (acc_articles[acc_num].Modul <= 8) ){
-      int pin = acc_articles[acc_num].pin_led_grn;
-      if(acc_articles[acc_num].acc_type == 0) {
-        AddOn[acc_articles[acc_num].Modul-1].digitalWrite(pin, LOW);
-        digitalWrite(9,0);
-        delay(20);
-        #ifdef DEBUG
-            Serial.print("Green: off / ");
-        #endif
-      }
-      pin = acc_articles[acc_num].pin_led_red;
-      AddOn[acc_articles[acc_num].Modul-1].digitalWrite(pin, HIGH);
-      digitalWrite(9,1);
-        #ifdef DEBUG
-            Serial.println("Red: on");
-        #endif
-    }
-    #ifdef DEBUG
-      Serial.print("Switching ACC-No. ");
-      Serial.print(mcan.getadrs(prot, acc_articles[acc_num].locID));
-      Serial.print(" on modul ");
-      Serial.print(acc_articles[acc_num].Modul);
-      Serial.println(" to RED.");
-    #endif
-  } else if(set_state){             // grün
-    if(acc_articles[acc_num].Modul == 0){
-      if(acc_articles[acc_num].acc_type == 0) {
-        digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
-        digitalWrite(9,0);
-        delay(20);
-        #ifdef DEBUG
-            Serial.print("Red: off / ");
-        #endif
-      }
-      digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
-      digitalWrite(9,1);
-        #ifdef DEBUG
-            Serial.println("Green: on");
-        #endif
-    } else if( (acc_articles[acc_num].Modul > 0) && (acc_articles[acc_num].Modul <= 8) ){
-      int pin = acc_articles[acc_num].pin_led_red;
-      if(acc_articles[acc_num].acc_type == 0) {
-        AddOn[acc_articles[acc_num].Modul-1].digitalWrite(pin, LOW);
-        digitalWrite(9,0);
-        delay(20);
-        #ifdef DEBUG
-            Serial.print("Red: off / ");
-        #endif
-      }
-      pin = acc_articles[acc_num].pin_led_grn;
-      AddOn[acc_articles[acc_num].Modul-1].digitalWrite(pin, HIGH);
-      digitalWrite(9,1);
-        #ifdef DEBUG
-            Serial.println("Green: on");
-        #endif
-    }
-    #ifdef DEBUG
-      Serial.print("Switching ACC-No. ");
-      Serial.print(mcan.getadrs(prot, acc_articles[acc_num].locID));
-      Serial.print(" on modul ");
-      Serial.print(acc_articles[acc_num].Modul);
-      Serial.println(" to GREEN.");
-    #endif
-  }
-  digitalWrite(9,0);
-  //mcan.sendAccessoryFrame(device, (EEPROM.read( acc_articles[acc_num].reg_locid ) << 8) | (EEPROM.read( acc_articles[acc_num].reg_locid + 1 )), acc_articles[acc_num].state_is, true);
-  // << keine Bestätigung als Stellpult senden!!!
-  acc_articles[acc_num].state_is = set_state;
-  EEPROM.put(acc_articles[acc_num].reg_state, acc_articles[acc_num].state_is);
-  digitalWrite(9,1);
-}
-#endif
-
-/*
- * Ausführen, wenn eine Nachricht verfügbar ist.
- * Nachricht wird geladen und anhängig vom CAN-Befehl verarbeitet.
- */
-void interruptFn(){
+//#############################################################################
+// Ausführen, wenn eine Nachricht verfügbar ist.
+// Nachricht wird geladen und anhängig vom CAN-Befehl verarbeitet.
+//#############################################################################
+void interruptFn() {
   can_frame_in = mcan.getCanFrame();
-  #ifdef LED_FEEDBACK
-    accFrame();
-  #endif
-  pingFrame();
-  configFrame();
-  statusFrame();
-
+  incomingFrame();
 }
 
-/*
- * Prüfen auf Schaltbefehl.
- */
-#ifdef LED_FEEDBACK
-void accFrame(){
-  if((can_frame_in.cmd == SWITCH_ACC) && (can_frame_in.resp_bit == 0)){     //Abhandlung bei gültigem Weichenbefehl
-    uint16_t locid = (can_frame_in.data[2] << 8) | can_frame_in.data[3];
-    #ifdef DEBUG
-      Serial.print("Recieved ACC-Frame for ACC: ");
-      Serial.println(mcan.getadrs(prot, locid));
+
+//#############################################################################
+// Eingehene CAN Frame überprüfen
+//#############################################################################
+void incomingFrame() {
+  //==================================================================================================
+  // Frames ohne UID
+  //==================================================================================================
+  if ((can_frame_in.cmd == PING) && (can_frame_in.resp_bit == 0)) {
+    //************************************************************************************************
+    // START - PING Frame           - Auf Ping Request antworten
+    //************************************************************************************************
+    #ifdef DEBUG_CAN
+      Serial.print(millis());
+      Serial.println(" - Sending ping response.");
     #endif
-    for(int i = 0; i < NUM_ACCs; i++){
-      if(locid == acc_articles[i].locID){                                              //Auf benutzte Adresse überprüfen
-        acc_articles[i].state_set = can_frame_in.data[4];
-        #ifdef LED_FEEDBACK
-        if (acc_articles[i].acc_type == 1) {
-          acc_articles[i].power_set = can_frame_in.data[5];
-        }
-        #endif
-        #ifdef DEBUG
-          Serial.println(" => match found -> Set target state.");
-        #endif
-        break;
-      }
-    }
-  }
-
-}
-#endif
-
-/*
- * Auf Ping Request antworten.
- */
-void pingFrame(){
-  if((can_frame_in.cmd == PING) && (can_frame_in.resp_bit == 0)){          //Auf Ping Request antworten
     mcan.sendPingFrame(device, true);
-    #ifdef DEBUG
-      Serial.println("Sending ping response.");
+    
+    //************************************************************************************************
+    // ENDE - PING Frame
+    //************************************************************************************************
+  } else if ((can_frame_in.cmd == SYS_CMD) && (can_frame_in.resp_bit == 0)) {   //Abhandlung bei gültigem Weichenbefehl
+    //************************************************************************************************
+    // START - STOP / GO / HALT     - 
+    //************************************************************************************************
+    uint8_t sub_cmd = can_frame_in.data[4];
+    if ( (sub_cmd == SYS_STOP) || (sub_cmd == SYS_HALT) ) {
+      //----------------------------------------------------------------------------------------------
+      // STOP oder HALT             - Eingaben verhindern.
+      //----------------------------------------------------------------------------------------------
+      #ifdef DEBUG_CAN
+        Serial.print(millis());
+        Serial.println(" - System locked.");
+      #endif
+      locked = true;
+      
+    } else if (sub_cmd == SYS_GO) {
+      //----------------------------------------------------------------------------------------------
+      // GO                         - Eingaben zulassen.
+      //----------------------------------------------------------------------------------------------
+      #ifdef DEBUG_CAN
+        Serial.print(millis());
+        Serial.println(" - System unlocked.");
+      #endif
+      locked = false;
+      
+    }
+    //************************************************************************************************
+    // ENDE - STOP / GO / HALT
+    //************************************************************************************************
+  } else if ((can_frame_in.cmd == SWITCH_ACC) && (can_frame_in.resp_bit == 0)) {   //Abhandlung bei gültigem Weichenbefehl
+    //************************************************************************************************
+    // START - ACC Frame            - Püfen auf Schaltbefehle
+    //************************************************************************************************
+    #ifdef LED_FEEDBACK
+      uint16_t locid = (can_frame_in.data[2] << 8) | can_frame_in.data[3];
+      #ifdef DEBUG_CAN
+        Serial.print(millis());
+        Serial.print(" - Recieved ACC-Frame for ACC: ");
+        Serial.println(mcan.getadrs(prot, locid));
+      #endif
+      for (int i = 0; i < NUM_ACCs; i++) {
+        if (locid == acc_articles[i].locID) {                                            //Auf benutzte Adresse überprüfen
+          #ifdef DEBUG_CAN
+            Serial.print(millis());
+            Serial.println("    => match found -> Set target state.");
+          #endif
+          acc_articles[i].state_set = can_frame_in.data[4];
+          acc_articles[i].power_set = can_frame_in.data[5];
+          break;
+        }
+        
+      }
     #endif
-  }
-
-}
-
-/*
- *
- */
-void configFrame(){
-  if((can_frame_in.cmd == CONFIG) && (can_frame_in.resp_bit == 0)){
-    if((uid_mat[0] == can_frame_in.data[0])&&(uid_mat[1] == can_frame_in.data[1])&&(uid_mat[2] == can_frame_in.data[2])&&(uid_mat[3] == can_frame_in.data[3])){
+    //************************************************************************************************
+    // ENDE - ACC Frame
+    //************************************************************************************************
+  } else if ((uid_mat[0] == can_frame_in.data[0]) && (uid_mat[1] == can_frame_in.data[1]) && (uid_mat[2] == can_frame_in.data[2]) && (uid_mat[3] == can_frame_in.data[3])) {
+  //==================================================================================================
+  // Befehle nur für eine UID
+  //==================================================================================================
+    if ((can_frame_in.cmd == CONFIG) && (can_frame_in.resp_bit == 0)) {
+      //**********************************************************************************************
+      // START - Config Frame       - 
+      //**********************************************************************************************
+      #ifdef DEBUG_CAN
+        Serial.print(millis());
+        Serial.print(" - Recieved config frame.  - INDEX:");
+        Serial.println(can_frame_in.data[4]);
+      #endif
       config_poll = true;
       config_index = can_frame_in.data[4];
-      #ifdef DEBUG
-        Serial.println("Recieved config frame.");
+      if (config_index == 0) locked = true;
+      if (config_index == CONFIG_NUM) {
+        locked = false;
+        config_sent = true;
+        Serial.println(" - CONFIG SENT");
+        Serial.println(" - System unlocked");
+      }
+
+      //**********************************************************************************************
+      // ENDE - Config Frame
+      //**********************************************************************************************
+    } else if ((can_frame_in.cmd == SYS_CMD) && (can_frame_in.resp_bit == 0) && (can_frame_in.data[4] == SYS_STAT)) {
+      //**********************************************************************************************
+      // START - Status Frame       -
+      //**********************************************************************************************
+      #ifdef DEBUG_CAN
+        Serial.print(millis());
+        Serial.print(" - Recieved Status Frame for config_index: ");
+        Serial.println(can_frame_in.data[5]);
       #endif
-    }
-  }
-
-}
-
-/*
- *
- */
-void statusFrame(){
-  if((can_frame_in.cmd == SYS_CMD) && (can_frame_in.resp_bit == 0) && (can_frame_in.data[4] == SYS_STAT)){
-    if((uid_mat[0] == can_frame_in.data[0])&&(uid_mat[1] == can_frame_in.data[1])&&(uid_mat[2] == can_frame_in.data[2])&&(uid_mat[3] == can_frame_in.data[3])){
-      if(can_frame_in.data[5] == 1){                          // Protokoll schreiben ( MM oder DCC)
+      //----------------------------------------------------------------------------------------------
+      // CAN_FRAME_IN.DATA[5]       => CONFIG_INDEX
+      //----------------------------------------------------------------------------------------------
+      if (can_frame_in.data[5] == 1) {
+        //--------------------------------------------------------------------------------------------
+        // Protokoll schreiben ( MM oder DCC)
+        //--------------------------------------------------------------------------------------------
         prot_old = prot;
-        if(!can_frame_in.data[7]){
+        if (!can_frame_in.data[7]) {
           prot = DCC_ACC;
-        }else{
+        } else {
           prot = MM_ACC;
         }
-        if(prot != prot_old){
+        if (prot != prot_old) {
           EEPROM.put(REG_PROT, can_frame_in.data[7]);
-          #ifdef DEBUG
-            Serial.print("Changing protocol: ");
+          #ifdef DEBUG_CAN
+            Serial.print(millis());
+            Serial.print(" -  => Changing protocol: ");
             Serial.print(prot_old);
             Serial.print(" -> ");
             Serial.println(prot);
@@ -891,69 +802,69 @@ void statusFrame(){
         }
         mcan.statusResponse(device, can_frame_in.data[5]);
 
-      } else if(can_frame_in.data[5] >= start_adrs_channel){
-        /*
-        if(can_frame_in.data[5] == acc_articles[can_frame_in.data[5]-start_adrs_channel].adrs_channel){
-          #ifdef DEBUG
-            Serial.print("Changing address: ");
-            Serial.print(mcan.getadrs(prot, acc_articles[can_frame_in.data[5]-start_adrs_channel].locID));
+      } else if (can_frame_in.data[5] >= 2) {
+        //--------------------------------------------------------------------------------------------
+        // mit Entkuppler
+        //--------------------------------------------------------------------------------------------
+        
+        uint8_t acc_num = ( can_frame_in.data[5] / 2 ) - 1;
+        #ifdef DEBUG_CAN
+          Serial.print(millis());
+          Serial.print(" -  => Change ACC Definition of ACC_NUM: #");
+          Serial.println(acc_num);
+        #endif
+        
+        if ( (can_frame_in.data[5] % 2) > 0 ) {
+          //------------------------------------------------------------------------------------------
+          // TYP: 
+          //------------------------------------------------------------------------------------------
+          #ifdef DEBUG_CAN
+            Serial.print(millis());
+            Serial.print(" -  => Changing Acc Type: ");
+            Serial.print(acc_articles[acc_num].acc_type);
             Serial.print(" -> ");
           #endif
-          acc_articles[can_frame_in.data[5]-start_adrs_channel].locID = mcan.generateLocId(prot, (can_frame_in.data[6] << 8) | can_frame_in.data[7] );
-          byte locid_high = acc_articles[can_frame_in.data[5]-start_adrs_channel].locID >> 8;
-          byte locid_low = acc_articles[can_frame_in.data[5]-start_adrs_channel].locID;
-          EEPROM.put(acc_articles[can_frame_in.data[5]-start_adrs_channel].reg_locid, locid_high);
-          EEPROM.put(acc_articles[can_frame_in.data[5]-start_adrs_channel].reg_locid + 1, locid_low);
-          mcan.statusResponse(device, can_frame_in.data[5]);
-          #ifdef DEBUG
-            Serial.println(mcan.getadrs(prot, acc_articles[can_frame_in.data[5]-start_adrs_channel].locID));
-          #endif
-
-        }
-        */
-        //int tmp = config_index / 2;
-        if (can_frame_in.data[5] % 2) {
-          // TYP:
-          #ifdef DEBUG
-            Serial.print("Changing Acc Type: ");
-            Serial.print(acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].acc_type);
-            Serial.print(" -> ");
-          #endif
-          acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].acc_type = can_frame_in.data[7];
-          EEPROM.put(acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].reg_type, can_frame_in.data[7]);
-          mcan.statusResponse(device, can_frame_in.data[5]);
-          #ifdef DEBUG
-            Serial.println(acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].acc_type);
-            Serial.println(" ==> 0 = Weiche/Signal ; 1 = Entkuppler");
+          acc_articles[acc_num].acc_type = can_frame_in.data[7];
+          EEPROM.put(acc_articles[acc_num].reg_type, can_frame_in.data[7]);
+          #ifdef DEBUG_CAN
+            Serial.print(acc_articles[acc_num].acc_type);
+            Serial.println("    ==> 0 = Weiche/Signal ; 1 = Entkuppler");
           #endif
         } else {
-          // ADRESSE:
-          #ifdef DEBUG
-            Serial.print("Changing address: ");
-            Serial.print(mcan.getadrs(prot, acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].locID));
+          //------------------------------------------------------------------------------------------
+          // ADRESSE: 
+          //------------------------------------------------------------------------------------------
+          #ifdef DEBUG_CAN
+            Serial.print(millis());
+            Serial.print(" -  => Changing address: ");
+            Serial.print(mcan.getadrs(prot, acc_articles[acc_num].locID));
             Serial.print(" -> ");
           #endif
-          acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].locID = mcan.generateLocId(prot, (can_frame_in.data[6] << 8) | can_frame_in.data[7] );
-          byte locid_high = acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].locID >> 8;
-          byte locid_low = acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].locID;
-          EEPROM.put(acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].reg_locid, locid_high);
-          EEPROM.put(acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].reg_locid + 1, locid_low);
-          mcan.statusResponse(device, can_frame_in.data[5]);
-          #ifdef DEBUG
-            Serial.println(mcan.getadrs(prot, acc_articles[ ( can_frame_in.data[5] / 2 ) - 1 ].locID));
+          acc_articles[acc_num].locID = mcan.generateLocId(prot, (can_frame_in.data[6] << 8) | can_frame_in.data[7] );
+          byte locid_high = acc_articles[acc_num].locID >> 8;
+          byte locid_low  = acc_articles[acc_num].locID;
+          EEPROM.put(acc_articles[acc_num].reg_locid    , locid_high);
+          EEPROM.put(acc_articles[acc_num].reg_locid + 1, locid_low);
+          #ifdef DEBUG_CAN
+            Serial.println(mcan.getadrs(prot, acc_articles[acc_num].locID));
           #endif
         }
-
+        mcan.statusResponse(device, can_frame_in.data[5]);
+        
       }
-    }
+      //**********************************************************************************************
+      // ENDE - Status Frame
+      //**********************************************************************************************
+    } 
+  //==================================================================================================
+  // ENDE - Befehle nur für eine UID
+  //==================================================================================================
   }
-
 }
 
-
-/*
- * switch LED on/off
- */
+//#############################################################################
+// Switch LED on/off
+//#############################################################################
 #ifdef LED_FEEDBACK
 void switchLED(uint8_t acc_num, bool color, bool power) {
   /*
@@ -962,91 +873,63 @@ void switchLED(uint8_t acc_num, bool color, bool power) {
    * save_state => 0 - do not save status, 1 - save status
    * power      => 0 - off, 1 - on
    */
-  bool save_state = 0;
-  if (acc_articles[acc_num].acc_type == 0) {
-    save_state = 1;
-    if ( color == 0 ) {
-      #ifdef DEBUG
-          Serial.println("Red: on / Green: off");
-      #endif
-      if( (acc_articles[acc_num].Modul > 0) && (acc_articles[acc_num].Modul <= 8) ){
-        // AddOn
-        AddOn[acc_articles[acc_num].Modul-1].digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
-        AddOn[acc_articles[acc_num].Modul-1].digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
-      } else {
-        // Onboard
-        digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
-        digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
+  #ifdef DEBUG_LED
+    Serial.print(millis());
+    Serial.print(" -- LED - Adresse: ");
+    Serial.print(mcan.getadrs(prot, acc_articles[acc_num].locID));
+    Serial.print(" ");
+  #endif
+  switch (acc_articles[acc_num].acc_type) {
+    case TYPE_WEICHE:
+      switch (color) {
+        case RED:
+          #ifdef DEBUG_LED
+            Serial.print(" - Weiche/Signal (rot|rund) LED: RED: ON / green: off");
+          #endif
+          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
+          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
+          break;
+        case GREEN:
+          #ifdef DEBUG_LED
+            Serial.print(" - Weiche/Signal (grün|gerade)  LED: red: off / GREEN: ON");
+          #endif
+          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
+          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
+          break;
       }
-    } else {
-      #ifdef DEBUG
-          Serial.println("Red: off / Green: on");
-      #endif
-    if( (acc_articles[acc_num].Modul > 0) && (acc_articles[acc_num].Modul <= 8) ){
-      // AddOn
-      AddOn[acc_articles[acc_num].Modul-1].digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
-      AddOn[acc_articles[acc_num].Modul-1].digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
-    } else {
-      // Onboard
-      digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
-      digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
-    }
-      
-    }
-  } else if ( (acc_articles[acc_num].acc_type == 1) && (power == 1) ) {
-    if ( color == 0 ) {
-      #ifdef DEBUG
-          Serial.println("Red: on");
-      #endif
-      if( (acc_articles[acc_num].Modul > 0) && (acc_articles[acc_num].Modul <= 8) ){
-        AddOn[acc_articles[acc_num].Modul-1].digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
-      } else {
-        digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
-      }      
-    } else {
-      #ifdef DEBUG
-          Serial.println("Green: on");
-      #endif
-      if( (acc_articles[acc_num].Modul > 0) && (acc_articles[acc_num].Modul <= 8) ){
-        AddOn[acc_articles[acc_num].Modul-1].digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
-      } else {
-        digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
-      }      
-    }
-    acc_articles[acc_num].power_is = acc_articles[acc_num].power_set;
-  } else if ( (acc_articles[acc_num].acc_type == 1) && (power == 0) ) {
-    if ( color == 0 ) {
-      #ifdef DEBUG
-          Serial.println("Red: off");
-      #endif
-      if( (acc_articles[acc_num].Modul > 0) && (acc_articles[acc_num].Modul <= 8) ){
-        AddOn[acc_articles[acc_num].Modul-1].digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
-      } else {
-        digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
-      }      
-    } else {
-      #ifdef DEBUG
-          Serial.println("Green: off");
-      #endif
-      if( (acc_articles[acc_num].Modul > 0) && (acc_articles[acc_num].Modul <= 8) ){
-        AddOn[acc_articles[acc_num].Modul-1].digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
-      } else {
-        digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
-      }      
-    }
-    acc_articles[acc_num].power_is = acc_articles[acc_num].power_set;
+      break;
+    case TYPE_ENTKUPPLER:
+      switch (color) {
+        case RED:
+          #ifdef DEBUG_LED
+            Serial.print(" - Entkuppler: Red: on");
+          #endif
+          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_red, power);
+          break;
+        case GREEN:
+          #ifdef DEBUG_LED
+            Serial.print(" - Entkuppler: Green: on");
+          #endif
+          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_grn, power);
+          break;
+      }
+      break;
   }
-
+  #ifdef DEBUG_LED
+    if (power == POWER_ON)  Serial.println(" - Power: ON");
+    if (power == POWER_OFF) Serial.println(" - Power: OFF");
+  #endif
+  acc_articles[acc_num].power_is = power;
   acc_articles[acc_num].state_is = color;
-  if (save_state) {
-    EEPROM.put(acc_articles[acc_num].reg_state, acc_articles[acc_num].state_is);
-  }
+  EEPROM.put(acc_articles[acc_num].reg_state, acc_articles[acc_num].state_is);
+
 }
 #endif
 
-/*
- * push button action
- */
+
+//#############################################################################
+// push button action
+//#############################################################################
 void button_pushed(uint8_t acc_num, bool color, bool state) {
   /*
    * color:     0 = red
@@ -1054,211 +937,254 @@ void button_pushed(uint8_t acc_num, bool color, bool state) {
    * state:     0 = not pushed
    *            1 = pushed
    */
-  if (state) {
-    /*
-     * Button pushed
-     */
-    if (color == RED ) {
-      /*
-       * red
-       */
-      #ifdef DEBUG
-        Serial.print("Send switchcommand RED to ACC #");
-        Serial.println(mcan.getadrs(prot, acc_articles[acc_num].locID));
-      #endif
-      if(acc_articles[acc_num].pushed_red != state) {   // Sende 1 mal Schaltbefehlt für Weichen & Signale
-        mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
-        acc_articles[acc_num].pushed_red = 1;
-        #ifdef LED_FEEDBACK
-          switchLED(acc_num, color, state);
+  switch (state) {
+    case BUTTON_PRESSED:
+      if (acc_articles[acc_num].pushed == BUTTON_NOT_PRESSED) {
+        
+        #ifdef DEBUG_INPUT
+          Serial.print(millis());
+          if ( color == RED ) {
+            Serial.print(" - send switchcommand RED to ACC #");
+          }
+          if ( color == GREEN ) {
+            Serial.print(" - send switchcommand GREEN to ACC #");
+          }
+          Serial.println(mcan.getadrs(prot, acc_articles[acc_num].locID));
         #endif
-      } else if(acc_articles[acc_num].acc_type == 1) {        // Sende wiederholt Schaltbefehlt für Entkuppler
         mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
+        acc_articles[acc_num].pushed = millis();
+        
+      } else if ( (acc_articles[acc_num].acc_type == TYPE_ENTKUPPLER)
+                && (millis() - acc_articles[acc_num].pushed >= acc_interval) ) {
+                  
+        #ifdef DEBUG_INPUT
+          Serial.print(millis());
+          if ( color == RED )  {
+            Serial.print(" - resend switchcommand RED to ACC #");
+          }
+          if ( color == GREEN ) {
+            Serial.print(" - resend switchcommand GREEN to ACC #");
+          }
+          Serial.println(mcan.getadrs(prot, acc_articles[acc_num].locID));
+        #endif
+        acc_articles[acc_num].pushed = millis();
+        mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
+        
       }
-      
-    } else {
-      /*
-       * green
-       */
-      #ifdef DEBUG
-        Serial.print("Send switchcommand GREEN to ACC #");
-        Serial.println(mcan.getadrs(prot, acc_articles[acc_num].locID));
+      #ifdef LED_FEEDBACK
+        acc_articles[acc_num].state_set = color;
+        acc_articles[acc_num].power_set = state;
       #endif
-      if(acc_articles[acc_num].pushed_grn != state) {   // Sende 1 mal Schaltbefehlt für Weichen & Signale
-        mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
-        acc_articles[acc_num].pushed_grn = 1;
-        #ifdef LED_FEEDBACK
-          switchLED(acc_num, color, state);
-        #endif
-      } else if(acc_articles[acc_num].acc_type == 1) {        // Sende wiederholt Schaltbefehlt für Entkuppler
-        mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
-      }      
-    }
-    
-  } else {
-    /*
-     * Button NOT pushed
-     */
-    if (color == 0 ) {
-      /*
-       * red
-       */
-      if (acc_articles[acc_num].pushed_red == 1) {
-        mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
-        #ifdef LED_FEEDBACK
-          switchLED(acc_num, color, state);
-        #endif
-      }
-      acc_articles[acc_num].pushed_red = 0;
+      break;
 
-    } else {
-      /*
-       * green
-       */
-      if (acc_articles[acc_num].pushed_grn == 1) {
-        mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
-        #ifdef LED_FEEDBACK
-          switchLED(acc_num, color, state);
-        #endif
-      }
-      acc_articles[acc_num].pushed_grn = 0;
       
-    }
+    case BUTTON_NOT_PRESSED:
+      if (acc_articles[acc_num].pushed > BUTTON_NOT_PRESSED) {
+        #ifdef DEBUG_INPUT
+          Serial.print(millis());
+          Serial.print(" - send power-off command to ACC #");
+          Serial.println(mcan.getadrs(prot, acc_articles[acc_num].locID));
+        #endif
+        acc_articles[acc_num].pushed = state;
+        mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
+
+        #ifdef LED_FEEDBACK
+          acc_articles[acc_num].state_set = color;
+          acc_articles[acc_num].power_set = state;
+        #endif
+        
+      }
+      break;
   }
-  
   
 }
 
 
-/*
- * Main loop
- */
-void loop() {
-  /*
+//#############################################################################
+// XXXXXXXXXXXXXXXXXXXXXXXX
+//#############################################################################
+
+
+//#############################################################################
+// Main loop
+//#############################################################################
+void loop(){
+
+  #ifdef run_fake_acc_commands
+    if(acc_articles[tmp].acc_type==1) button_pushed(tmp, acc_articles[tmp].state_set, BUTTON_PRESSED);
+  #endif
+  
   currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    /*
     detachInterrupt(digitalPinToInterrupt(2));
     delay(50);
     attachInterrupt(digitalPinToInterrupt(2), interruptFn, LOW);
-  }
-  */
-  currentMillis = millis();
-  if(currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
+    */
     state_LED = !state_LED;
-    digitalWrite(9,state_LED);
-  }
-
-  for(int i = 0; i < NUM_ACCs; i++){
-    #ifdef LED_FEEDBACK
-      if(acc_articles[i].state_is != acc_articles[i].state_set){
-        switchLED(i, acc_articles[i].state_set, acc_articles[i].power_set);
-        #ifdef DEBUG
-          Serial.print("Switching ACC ");
-          Serial.print(mcan.getadrs(prot, acc_articles[i].locID));
-          if(acc_articles[i].state_set == RED){
-            Serial.println(" to RED.");
-          } else {
-            Serial.println(" to GREEN.");
-          }
-        #endif
-      } else if( (acc_articles[i].acc_type == 1) && (acc_articles[i].power_is != acc_articles[i].power_set) ) {
-        switchLED(i, acc_articles[i].state_set, acc_articles[i].power_set);
-        #ifdef DEBUG
-          Serial.print("Switching ACC ");
-          Serial.print(mcan.getadrs(prot, acc_articles[i].locID));
-          if(acc_articles[i].state_set == RED){
-            Serial.println(" to RED.");
-          } else {
-            Serial.println(" to GREEN.");
-          }
-        #endif
-      }
-
-    #endif
-
-    //digitalWrite(9,0);
-    if(acc_articles[i].Modul == 0) {
-      if(digitalRead(acc_articles[i].pin_red) == LOW) {
-        /*
-         * red button pushed
-         */
-        button_pushed(i, RED, BUTTON_PRESSED);
-      } else {
-        /*
-         * red button NOT pushed
-         */
-        button_pushed(i, RED, BUTTON_NOT_PRESSED);
-      }
-      
-      if (digitalRead(acc_articles[i].pin_grn) == LOW) {
-        /*
-         * red button pushed
-         */
-        button_pushed(i, GREEN, BUTTON_PRESSED);
-      } else {
-        /*
-         * red button NOT pushed
-         */
-        button_pushed(i, GREEN, BUTTON_NOT_PRESSED);
-      }
-      
+    digitalWrite(9, state_LED);
+    if (locked == true) {
+      interval = 100;
     } else {
-      if(AddOn[acc_articles[i].Modul-1].digitalRead(acc_articles[i].pin_red) == LOW) {
-        /*
-         * red button pushed
-         */
-        button_pushed(i, RED, true);
-      } else {
-        /*
-         * red button NOT pushed
-         */
-        button_pushed(i, RED, false);
+      interval = 1000;
+    }
+
+    #ifdef run_fake_acc_commands
+      button_pushed(tmp, acc_articles[tmp].state_set, BUTTON_NOT_PRESSED);
+      interval = random(1500,3000);
+      tmp = random(0,NUM_ACCs);
+      acc_articles[tmp].state_set = !acc_articles[tmp].state_set;
+      acc_articles[tmp].power_set = !acc_articles[tmp].power_set;
+    
+      tmp = random(0,NUM_ACCs);
+      button_pushed(tmp, !acc_articles[tmp].state_set, BUTTON_PRESSED);
+    #endif
+  }
+  
+  //==================================================================================================
+  // STELL SCHLEIFE
+  //==================================================================================================
+  for (int i = 0; i < NUM_ACCs; i++) {
+    //================================================================================================
+    // LED_FEEDBACK
+    //================================================================================================
+    #ifdef LED_FEEDBACK
+      if ( (acc_articles[i].acc_type == TYPE_WEICHE) 
+          && (acc_articles[i].state_is != acc_articles[i].state_set) ) {
+            
+        switchLED(i, acc_articles[i].state_set, acc_articles[i].power_set);
+        
+      } else if ( (acc_articles[i].acc_type == TYPE_ENTKUPPLER)
+          && (acc_articles[i].power_is != acc_articles[i].power_set) ) {
+            
+        switchLED(i, acc_articles[i].state_set, acc_articles[i].power_set);
+        
       }
-      
-      if (AddOn[acc_articles[i].Modul-1].digitalRead(acc_articles[i].pin_grn) == LOW) {
-        /*
-         * red button pushed
-         */
-        button_pushed(i, GREEN, true);
+    #endif
+    //================================================================================================
+    // ENDE - LED_FEEDBACK
+    //================================================================================================
+    //================================================================================================
+    // TASTER ABFRAGEN
+    //================================================================================================
+    if ( (locked == false) && (currentMillis - previousMillis_input >= input_interval) ) {
+      if (AddOn[acc_articles[i].Modul].digitalRead(acc_articles[i].pin_red) == LOW) {
+        
+        button_pushed(i, RED, BUTTON_PRESSED);
+        
+      } else if (AddOn[acc_articles[i].Modul].digitalRead(acc_articles[i].pin_grn) == LOW) {
+        
+        button_pushed(i, GREEN, BUTTON_PRESSED);
+        
       } else {
-        /*
-         * red button NOT pushed
-         */
-        button_pushed(i, GREEN, false);
+        #ifdef LED_FEEDBACK
+        button_pushed(i, acc_articles[i].state_is, BUTTON_NOT_PRESSED);
+        #endif
+        
       }
 
     }
-    //digitalWrite(9,1);
+    //================================================================================================
+    // ENDE - TASTER ABFRAGEN
+    //================================================================================================
   }
+  //==================================================================================================
+  // ENDE - STELL SCHLEIFE
+  //==================================================================================================
+  //==================================================================================================
+  // CONFIG_POLL
+  //==================================================================================================
   if(config_poll){
-    if(config_index == 0) mcan.sendDeviceInfo(device, CONFIG_NUM);
-    if(config_index == 1) mcan.sendConfigInfoDropdown(device, 1, 2, EEPROM.read(REG_PROT), "Protokoll_DCC_MM");
+    if(config_index == 0) {
+      #ifdef DEBUG_CONFIG
+        //Serial.print(millis());
+        Serial.print(" - ");
+        Serial.print(config_index);
+        Serial.println("   - Send Device Infos");
+      #endif
+      mcan.sendDeviceInfo(device, CONFIG_NUM);
+    } else
+    if(config_index == 1) {
+      #ifdef DEBUG_CONFIG
+        //Serial.print(millis());
+        Serial.print(" - ");
+        Serial.print(config_index);
+        Serial.print("   - Send protocoltype: ");
+        Serial.print(EEPROM.read(REG_PROT));
+        Serial.println(" ( 0 = DCC / 1 = MM )");
+      #endif
+      mcan.sendConfigInfoDropdown(device, 1, 2, EEPROM.read(REG_PROT), "Protokoll_DCC_MM");
+    } else
     if(config_index >= 2){
-      /*
-      string3 = string1 + ( config_index - start_adrs_channel + 1 ) + string2;
-      uint16_t adrs = mcan.getadrs(prot, acc_articles[ config_index - start_adrs_channel ].locID);
-      mcan.sendConfigInfoSlider(device, config_index, 1, 2048, adrs, string3);
-      */
-      //int tmp = config_index / 2;
-      if (config_index % 2) {
-        // TYP:
-        //string1=( config_index / 2 );
-        //string2=". Magnetartikeltyp:_Weiche/Signal_Entkuppler";
-        string3="Magnetartikeltyp:_Weiche/Signal_Entkuppler";
-        mcan.sendConfigInfoDropdown(device, config_index, 2, acc_articles[ ( config_index / 2 ) - 1 ].acc_type, string3);
+      //----------------------------------------------------------------------------------------------
+      //mit Entkuppler:
+      //----------------------------------------------------------------------------------------------
+      uint8_t ci_acc_num = ( config_index / 2 ) - 1;
+      if ( (config_index % 2) > 0) {
+        //--------------------------------------------------------------------------------------------
+        // TYP: 
+        //--------------------------------------------------------------------------------------------
+        #ifdef DEBUG_CONFIG
+          //Serial.print(millis());
+          Serial.print(" - ");
+          Serial.print(config_index);
+          if (config_index < 10) {
+            Serial.print("   - Send Config Dropdown for ACC_NUM: ");
+          } else if (config_index < 100) {
+            Serial.print("  - Send Config Dropdown for ACC_NUM: ");
+          } else {
+            Serial.print(" - Send Config Dropdown for ACC_NUM: ");
+          }
+          Serial.print(ci_acc_num);
+          Serial.print(" - Magnetartikeltyp: ");
+          Serial.println(acc_articles[ci_acc_num].acc_type);
+        #endif
+        mcan.sendConfigInfoDropdown(device, config_index, 2, acc_articles[ci_acc_num].acc_type, "Artikeltyp_WS_EK");
+        
       } else {
-        // ADRESSE:
-        string1 = ( config_index / 2 );
-        string2 = ". Adresse:_1_2048";
-        string3 = ( config_index / 2 ) + string2;
-        //string3 = ( config_index / 2 ) + ". Adresse:_1_2048";
-        uint16_t adrs = mcan.getadrs(prot, acc_articles[ ( config_index / 2 ) - 1 ].locID);
-        mcan.sendConfigInfoSlider(device, config_index, 1, 2048, adrs, string3);
+        //--------------------------------------------------------------------------------------------
+        // ADRESSE: 
+        //--------------------------------------------------------------------------------------------
+        string1 = "Adrs ";
+        string2 = "_1_2048";
+        string3 = String(ci_acc_num);
+        string4 = string1 + string3 + string2;
+        uint16_t adrs = mcan.getadrs(prot, acc_articles[ci_acc_num].locID);
+        #ifdef DEBUG_CONFIG
+          //Serial.print(millis());
+          Serial.print(" - ");
+          Serial.print(config_index);
+          if (config_index < 10) {
+            Serial.print("   - Send Config Slider   for ACC_NUM: ");
+          } else if (config_index < 100) {
+            Serial.print("  - Send Config Slider   for ACC_NUM: ");
+          } else {
+            Serial.print(" - Send Config Slider   for ACC_NUM: ");
+          }
+          Serial.print(ci_acc_num);
+          Serial.print(" - Adresse: ");
+          Serial.println(adrs);
+        #endif
+        mcan.sendConfigInfoSlider(device, config_index, 1, 2048, adrs, string4);
+        
       }
-
+      
     }
     config_poll = false;
   }
-
+  //==================================================================================================
+  // ENDE - CONFIG_POLL
+  //==================================================================================================
+  
+  if (currentMillis - previousMillis_input >= input_interval ) {
+    previousMillis_input = currentMillis;
+  }
+    
 }
+
+
+//#############################################################################
+// ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE
+//#############################################################################
+

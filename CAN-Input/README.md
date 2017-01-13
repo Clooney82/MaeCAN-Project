@@ -6,6 +6,18 @@ Das Projekt ist noch im Anfangsstadium. Es ist also mit Veränderungen in relati
 
 ## Changelog
 
+##### V0.4
+
+ + mostly rewritten
+ + Changes:
+   + support of OnBoard Inputs removed
+   + added support for Uncouplers
+   + config via CS2/CS3 works now
+   + additional DEBUG options
+   + added fake input simulation
+   + Change EEPROM storage layout
+   + added more source code comments
+
 ##### V0.3
 
  + new feature: Unterscheidung Weiche/Signal & Entkuppler
