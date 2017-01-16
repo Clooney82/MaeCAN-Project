@@ -256,6 +256,28 @@ void MCAN::sendPingFrame(CanDevice device, bool response){
 	sendCanFrame(can_frame);
 }
 
+void MCAN::switchAccResponse(CanDevice device, uint32_t locId, bool state){
+
+	MCANMSG can_frame;
+
+	can_frame.cmd = SWITCH_ACC;
+	can_frame.resp_bit = 1;
+	can_frame.hash = device.hash;
+	can_frame.dlc = 6;
+	can_frame.data[0] = 0;
+	can_frame.data[1] = 0;
+	can_frame.data[2] = locId >> 8;
+	can_frame.data[3] = locId;
+	can_frame.data[4] = state;            /* Meldung der Lage für Märklin-Geräte.*/
+  can_frame.data[5] = 0;
+  sendCanFrame(can_frame);
+
+  can_frame.data[4] = 0xfe - state;     /* Meldung für CdB-Module und Rocrail Feldereignisse. */
+	delay(20);
+
+  sendCanFrame(can_frame);
+}
+
 void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response){
 
 	MCANMSG can_frame;

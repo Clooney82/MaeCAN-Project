@@ -133,11 +133,19 @@ public:
 	void sendPingFrame(CanDevice device, bool response);
 
   /******************************************************************************
-	 *  Name: sendAccessoryFrame
-	 *  Funktion: Sendet einen Schaltauftrag oder die Antwort auf einen.
-	 *  Parameter: Geräteinformationen, Local-ID des zu schaltenden Zubehörs,
-	 *             Zustand des Zubehörs, Auftrag (false) oder Antwort (true).
+	 *  Name: switchAccResponse
+	 *  Funktion: Meldung nach erfolgreichem Schalten.
+	 *  Parameter: Geräteinformationen, Local-ID des geschaltenden Zubehörs,
+	 *             Zustand des Zubehörs.
 	 ******************************************************************************/
+   void switchAccResponse(CanDevice device, uint32_t locId, bool state);
+
+   /******************************************************************************
+ 	 *  Name: sendAccessoryFrame
+ 	 *  Funktion: Sendet einen Schaltauftrag oder die Antwort auf einen.
+ 	 *  Parameter: Geräteinformationen, Local-ID des zu schaltenden Zubehörs,
+ 	 *             Zustand des Zubehörs, Auftrag (false) oder Antwort (true).
+ 	 ******************************************************************************/
 	void sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response);
   void sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response, bool power);
 
