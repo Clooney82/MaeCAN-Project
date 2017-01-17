@@ -1,12 +1,12 @@
 /*
- * MäCAN-Relais AddOn, Software-Version 0.3
+ * MäCAN-Relais AddOn, Software-Version 0.4
  *
  *  Created by Maximilian Goldschmidt <maxigoldschmidt@gmail.com>
  *  Modified by Jochen Kielkopf.
  *  Do with this whatever you want, but keep thes Header and tell
  *  the others what you changed!
  *
- *  Last edited: 2016-11-12
+ *  Last edited: 2017-01-16
  */
 
 /******************************************************************************
@@ -50,9 +50,9 @@
  * Allgemeine Setup Daten:
  ******************************************************************************/
 #define VERS_HIGH 0       //Versionsnummer vor dem Punkt
-#define VERS_LOW  3       //Versionsnummer nach dem Punkt
-#define BOARD_NUM 48       //Identifikationsnummer des Boards (Anzeige in der CS2)
-#define UID 0x10052048    //CAN-UID
+#define VERS_LOW  4       //Versionsnummer nach dem Punkt
+#define BOARD_NUM 1       //Identifikationsnummer des Boards (Anzeige in der CS2)
+#define UID 0x12345678    //CAN-UID
 // UID = 0x1 device.type VERS_HIGH VERS_LOW BOARD_NUM
 
 const uint8_t USE_ONBOARD = 0;       // On-Board Ausgänge benutzen: 0 = Nein; 1 = Ja
@@ -84,6 +84,7 @@ int base_address = 1;
 /******************************************************************************
    Allgemeine Konstanten:
  ******************************************************************************/
+#define INDIVIDUAL_SWITCHTIME
 #define RED   0
 #define GREEN 1
 #define POWER_ON  1
@@ -116,7 +117,9 @@ typedef struct {
   bool state_set;       // ...
   bool power_is  = 0;   // Strom ein-/aus
   bool power_set = 0;   // Strom ein-/ausschalten
-//  unsigned long active  = 0;
+  #ifdef INDIVIDUAL_SWITCHTIME
+    unsigned long active  = 0;
+  #endif
 //  int adrs_channel;     // Konfigkanäle für die Adressen
 } acc_Magnet;
 
@@ -140,7 +143,7 @@ uint16_t hash;
 bool     config_poll  = false;
 byte     uid_mat[4];
 uint8_t  config_index =   0;
-uint16_t switchtime   = 2500;
+uint16_t switchtime   = 250;
 bool     switchmode   = 0;
 uint16_t prot;
 uint16_t prot_old;
@@ -204,7 +207,7 @@ void setup() {
   device.versLow = VERS_LOW;
   device.hash = hash;
   device.uid = UID;
-  device.artNum = "00052";
+  device.artNum = "10052";
   device.name = "MäCAN Schaltdecoder";
   device.boardNum = BOARD_NUM;
   device.type = MCAN_RELAIS;
@@ -749,8 +752,10 @@ void switchAcc(int acc_num, bool color, bool power){
   acc_articles[acc_num].state_is = color;
   acc_articles[acc_num].power_set = power;
   acc_articles[acc_num].power_is = acc_articles[acc_num].power_set;
-//  if(power == 0) acc_articles[acc_num].active = 0;
-//  if(power == 1) acc_articles[acc_num].active = millis();
+  #ifdef INDIVIDUAL_SWITCHTIME
+    if(power == 0) acc_articles[acc_num].active = 0;
+    if(power == 1) acc_articles[acc_num].active = millis();
+  #endif
   digitalWrite(9,1);
 
 }
@@ -845,8 +850,11 @@ void loop() {
           Serial.println(acc_articles[i].power_set);
         #endif
         switchAcc(i, acc_articles[i].state_set, acc_articles[i].power_set);
-      //} else if ( (acc_articles[i].power_is == 1 ) && (millis() - acc_articles[i].active >= switchtime) ){
+      #ifdef INDIVIDUAL_SWITCHTIME
+      } else if ( (acc_articles[i].power_is == 1 ) && (millis() - acc_articles[i].active >= switchtime) ){
+      #else
       } else if ( (acc_articles[i].power_is == 1 ) && (millis() - previousMillis2 >= switchtime) ){
+      #endif
         #ifdef DEBUG_ACC
           Serial.print(millis());
           Serial.print(" - Power is still on.");
@@ -860,9 +868,11 @@ void loop() {
     // ENDE - STELL SCHLEIFE
     //================================================================================================
   }
-  if (currentMillis - previousMillis2 >= switchtime) {
-    previousMillis2 = currentMillis;
-  }
+  #ifndef INDIVIDUAL_SWITCHTIME
+    if (currentMillis - previousMillis2 >= switchtime) {
+      previousMillis2 = currentMillis;
+    }
+  #endif
 }
 
 
