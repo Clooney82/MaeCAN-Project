@@ -1,12 +1,12 @@
 /******************************************************************************
-   MäCAN-Stellpult AddOn, Software-Version 0.4
+   MäCAN-Stellpult AddOn, Software-Version 0.5
 
     Created by Maximilian Goldschmidt <maxigoldschmidt@gmail.com>
     Modified by Jochen Kielkopf.
     Do with this whatever you want, but keep thes Header and tell
     the others what you changed!
 
-    Last edited: 2017-01-13
+    Last edited: 2017-01-16
  ******************************************************************************/
 /******************************************************************************
    Includes
@@ -41,7 +41,7 @@
    ========================================================================
  ******************************************************************************/
 #define VERS_HIGH 0       // Versionsnummer vor dem Punkt
-#define VERS_LOW  4       // Versionsnummer nach dem Punkt
+#define VERS_LOW  5       // Versionsnummer nach dem Punkt
 /******************************************************************************
    Allgemeine Setup Daten:
  ******************************************************************************/
@@ -51,7 +51,8 @@
 const uint8_t ANZ_ADDONS = 1;       // Anzahl AddOn Platinen (max 8)
                                     // => Ohne LED_FEEDBACK: ab > 7 AddOns wird der Arbeitsspeicher knapp
 
-#define LED_FEEDBACK                //
+#define LED_FEEDBACK                // comment it out if you don´t use leds to show switchstatus
+#define use_uncuppler               // comment it out if you don´t use uncupplers - keeps config on CS2/CS3 smaller.
 
 #ifdef LED_FEEDBACK
   const uint8_t ANZ_ACC_PER_ADDON = 4;  // Anzahl an Ausgängen pro AddOn Platine: Default = 4
@@ -68,7 +69,7 @@ const uint8_t ANZ_ADDONS = 1;       // Anzahl AddOn Platinen (max 8)
    ==>> evtl. ab AddOn-HW Rev. c
  ---------------------------------------*/
 
-int base_address = 0;
+int base_address = 1;
 /*---------------------------------------
  => Basisadresse ( x = base_address + 1 ) für die initiale Adresskonfiguration (see config_own_adresses_manual() )
  => base_address =   0 ===> 1, 2, 3, 4, ...
@@ -98,10 +99,6 @@ int base_address = 0;
 #define TYPE_WEICHE 0
 #define TYPE_ENTKUPPLER 1
 
-#ifdef DEBUG_CONFIG
-  byte byteRead;
-  String stringRead;
-#endif
 #ifdef run_fake_acc_commands
   uint8_t tmp = 0;
 #endif
@@ -123,7 +120,10 @@ typedef struct {
   uint8_t pin_red;      // PIN Rot
   int reg_type;         // EEPROM-Register für die ACC Typen
   bool acc_type  = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
+  //int adrs_channel;     // Konfigkanäle für die Adressen
   unsigned long pushed  = 0;
+  //bool pushed_red  = 0;
+  //bool pushed_grn  = 0;
   #ifdef LED_FEEDBACK
     uint8_t pin_led_grn;  // PIN Grün
     uint8_t pin_led_red;  // PIN Rot
@@ -143,10 +143,12 @@ uint8_t NUM_ACCs;
 
 unsigned long previousMillis = 0;
 unsigned long previousMillis_input = 0;
+//unsigned long previousMillis_config = 0;
 unsigned long currentMillis = 0;
 uint16_t interval = 1000;
 const uint16_t acc_interval = 500;
 const uint8_t input_interval = 100;
+//const uint16_t config_interval = 10000;
 bool state_LED = false;
 
 /******************************************************************************
@@ -221,6 +223,8 @@ void setup() {
   device.uid = UID;
   device.artNum = "00053";   // 8 byte
   device.name = "MäCAN Stellpult";
+//  device.artNum = "xxxxx";   // 8 byte
+//  device.name = "TEST EK";
   device.boardNum = BOARD_NUM;
   device.type = MCAN_STELLPULT;
 
@@ -234,8 +238,13 @@ void setup() {
 
   NUM_ACCs = ANZ_ACC_PER_ADDON * ANZ_ADDONS;
   
-  // mit Entkuppler:
-  CONFIG_NUM = start_adrs_channel + ( 2 * NUM_ACCs ) - 1;
+  #ifdef use_uncuppler
+    // mit Entkuppler:
+    CONFIG_NUM = start_adrs_channel + ( 2 * NUM_ACCs ) - 1;
+  #else
+    // ohne Entkuppler:
+    CONFIG_NUM = start_adrs_channel + NUM_ACCs - 1;
+  #endif
 
   setup_acc();
   #ifdef LED_FEEDBACK
@@ -342,6 +351,8 @@ void setup_acc(){
         acc_articles[num].locID     = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
         acc_articles[num].reg_type  = (20 + (6 * (num + 1))    );
         acc_articles[num].acc_type  = EEPROM.read( acc_articles[num].reg_type );
+
+        //acc_articles[num].adrs_channel = num + start_adrs_channel;
         
         #ifdef LED_FEEDBACK
           acc_articles[num].pin_led_grn = acc_articles[num].pin_grn + 8;
@@ -390,141 +401,11 @@ void config_own_adresses_manual() {
     #ifdef LED_FEEDBACK
       acc_articles[i].reg_state = (20 + (6 * (i + 1)) - 1);
     #endif
-    acc_articles[i].reg_type  = (20 + (6 * (i + 1))    );
-    switch (i) {
-      case 0:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 1:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 2:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 3:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 4:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 5:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 6:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 7:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 8:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 9:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 10:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 11:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 12:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 13:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 14:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 15:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 16:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 17:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 18:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 19:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 20:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 21:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 22:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 23:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 24:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 25:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 26:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 27:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler 
-        adrsss = base_address + i;
-        break;
-      case 28:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        adrsss = base_address + i;
-        break;
-      case 29:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        adrsss = base_address + i;
-        break;
-      case 30:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        adrsss = base_address + i;
-        break;
-      case 31:
-        acc_articles[i].acc_type = 0;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        adrsss = base_address + i;
-        break;
-      default:
-        acc_articles[i].acc_type = 0;
-        adrsss = base_address + i;
-        break;
-    }
+    #ifdef use_uncuppler
+      acc_articles[i].reg_type  = (20 + (6 * (i + 1))    );
+      acc_articles[i].acc_type = 0;
+    #endif
+    adrsss = base_address + i;
     acc_articles[i].locID = mcan.generateLocId(prot, adrsss );
     byte locid_high = acc_articles[i].locID >> 8;
     byte locid_low = acc_articles[i].locID;
@@ -803,6 +684,7 @@ void incomingFrame() {
         mcan.statusResponse(device, can_frame_in.data[5]);
 
       } else if (can_frame_in.data[5] >= 2) {
+#ifdef use_uncuppler
         //--------------------------------------------------------------------------------------------
         // mit Entkuppler
         //--------------------------------------------------------------------------------------------
@@ -850,7 +732,25 @@ void incomingFrame() {
           #endif
         }
         mcan.statusResponse(device, can_frame_in.data[5]);
-        
+#else 
+        //--------------------------------------------------------------------------------------------
+        // ohne Entkuppler
+        //--------------------------------------------------------------------------------------------
+        #ifdef DEBUG_CAN
+          Serial.print("Changing address: ");
+          Serial.print(mcan.getadrs(prot, acc_articles[can_frame_in.data[5]-start_adrs_channel].locID));
+          Serial.print(" -> ");
+        #endif
+        acc_articles[can_frame_in.data[5]-start_adrs_channel].locID = mcan.generateLocId(prot, (can_frame_in.data[6] << 8) | can_frame_in.data[7] );
+        byte locid_high = acc_articles[can_frame_in.data[5]-start_adrs_channel].locID >> 8;
+        byte locid_low = acc_articles[can_frame_in.data[5]-start_adrs_channel].locID;
+        EEPROM.put(acc_articles[can_frame_in.data[5]-start_adrs_channel].reg_locid, locid_high);
+        EEPROM.put(acc_articles[can_frame_in.data[5]-start_adrs_channel].reg_locid + 1, locid_low);
+        mcan.statusResponse(device, can_frame_in.data[5]);
+        #ifdef DEBUG_CAN
+          Serial.println(mcan.getadrs(prot, acc_articles[can_frame_in.data[5]-start_adrs_channel].locID));
+        #endif
+#endif
       }
       //**********************************************************************************************
       // ENDE - Status Frame
@@ -1076,12 +976,13 @@ void loop(){
       } else if (AddOn[acc_articles[i].Modul].digitalRead(acc_articles[i].pin_grn) == LOW) {
         
         button_pushed(i, GREEN, BUTTON_PRESSED);
-        
-      } else {
+
         #ifdef LED_FEEDBACK
-        button_pushed(i, acc_articles[i].state_is, BUTTON_NOT_PRESSED);
-        #endif
+      } else {
         
+        button_pushed(i, acc_articles[i].state_is, BUTTON_NOT_PRESSED);
+
+        #endif
       }
 
     }
@@ -1098,7 +999,6 @@ void loop(){
   if(config_poll){
     if(config_index == 0) {
       #ifdef DEBUG_CONFIG
-        //Serial.print(millis());
         Serial.print(" - ");
         Serial.print(config_index);
         Serial.println("   - Send Device Infos");
@@ -1107,7 +1007,6 @@ void loop(){
     } else
     if(config_index == 1) {
       #ifdef DEBUG_CONFIG
-        //Serial.print(millis());
         Serial.print(" - ");
         Serial.print(config_index);
         Serial.print("   - Send protocoltype: ");
@@ -1117,6 +1016,7 @@ void loop(){
       mcan.sendConfigInfoDropdown(device, 1, 2, EEPROM.read(REG_PROT), "Protokoll_DCC_MM");
     } else
     if(config_index >= 2){
+#ifdef use_uncuppler
       //----------------------------------------------------------------------------------------------
       //mit Entkuppler:
       //----------------------------------------------------------------------------------------------
@@ -1152,7 +1052,6 @@ void loop(){
         string4 = string1 + string3 + string2;
         uint16_t adrs = mcan.getadrs(prot, acc_articles[ci_acc_num].locID);
         #ifdef DEBUG_CONFIG
-          //Serial.print(millis());
           Serial.print(" - ");
           Serial.print(config_index);
           if (config_index < 10) {
@@ -1169,7 +1068,32 @@ void loop(){
         mcan.sendConfigInfoSlider(device, config_index, 1, 2048, adrs, string4);
         
       }
-      
+#else
+      //----------------------------------------------------------------------------------------------
+      // Ohne Entkuppler
+      //----------------------------------------------------------------------------------------------
+      string1 = "Adrs ";
+      string2 = "_1_2048";
+      string3 = String(config_index - 1);
+      string4 = string1 + string3 + string2;
+      uint16_t adrs = mcan.getadrs(prot, acc_articles[ config_index - start_adrs_channel ].locID);
+        #ifdef DEBUG_CONFIG
+          Serial.print(" - ");
+          Serial.print(config_index);
+          if (config_index < 10) {
+            Serial.print("   - Send Config Slider   for ACC_NUM: ");
+          } else if (config_index < 100) {
+            Serial.print("  - Send Config Slider   for ACC_NUM: ");
+          } else {
+            Serial.print(" - Send Config Slider   for ACC_NUM: ");
+          }
+          Serial.print(config_index-1);
+          Serial.print(" Adresse: ");
+          Serial.println(adrs);
+          Serial.println(string3);
+        #endif
+      mcan.sendConfigInfoSlider(device, config_index, 1, 2048, adrs, string4);
+#endif      
     }
     config_poll = false;
   }
@@ -1180,11 +1104,9 @@ void loop(){
   if (currentMillis - previousMillis_input >= input_interval ) {
     previousMillis_input = currentMillis;
   }
-    
 }
 
 
 //#############################################################################
 // ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE
 //#############################################################################
-
