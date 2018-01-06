@@ -4,13 +4,16 @@
  *  Do with this whatever you want, but keep thes Header and tell
  *  the others what you changed!
  *
- *  Last changed: 2017-01-06
+ *  Last changed: 2017-12-20
  */
 
 
 #ifndef MCAN_h
 #define MCAN_h
-
+#if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
+	#include <FlexCAN.h>
+	#include <kinetis_flexcan.h>
+#endif
 /*
  *  Gerätetypen (MäCAN):
  *  Dienen nur zur Unterscheidung beim Ping, hat keine auswirkungen auf den Betrieb.
@@ -20,6 +23,7 @@
 #define MCAN_RELAIS	0x0052
 #define MCAN_STELLPULT 0x0053
 #define MCAN_S88_GBS 0x0054
+#define MCAN_TOR_ANTRIEB 0x0055
 
 
 /*
@@ -90,15 +94,14 @@ public:
 	 *  Funktion: Initialisiert den CAN-Bus mit allen spezifischen Einstellungen
 	 *  Parameter: keiner oder "true", um den Debug-Modus zu nutzen.
 	 ******************************************************************************/
-	void initMCAN();
-	void initMCAN(bool debug);
+	void initMCAN(bool debug=false);
 
 	/******************************************************************************
 	 *  Name: sendCanFrame
 	 *  Funktion: Versendet eine CAN-Nachricht über den Bus (siehe MCANMSG)
 	 *  Parameter: CAN-Nachricht (MCANMSG)
 	 ******************************************************************************/
-	void sendCanFrame(MCANMSG can_frame);
+	void sendCanFrame(MCANMSG &can_frame);
 
 	/******************************************************************************
 	 *  Name: sendDeviceInfo
@@ -115,7 +118,7 @@ public:
 	 *             Auswahlmöglichkeiten, Standar-/derzeitige Einstellung,
 	 *             String (genauere erklärung folgt).
 	 ******************************************************************************/
-	void sendConfigInfoDropdown(CanDevice device, uint8_t configChanel, uint8_t numberOfOptions, uint8_t defaultSetting, String settings);
+	void sendConfigInfoDropdown(CanDevice &device, uint8_t configChanel, uint8_t numberOfOptions, uint8_t defaultSetting, String settings);
 
 	/******************************************************************************
 	 *  Name: sendConfigInfoSlider
@@ -123,14 +126,14 @@ public:
 	 *  Parameter: Geräteinformationen, Konfig-Kanal, Minimalwert, Maximalwert,
 	 *             Standard-/derzeitiger Wert, String (genauere erklärung folgt).
 	 ******************************************************************************/
-	void sendConfigInfoSlider(CanDevice device, uint8_t configChanel, uint16_t lowerValue, uint16_t upperValue, uint16_t defaultValue, String settings);
+	void sendConfigInfoSlider(CanDevice &device, uint8_t configChanel, uint16_t lowerValue, uint16_t upperValue, uint16_t defaultValue, String settings);
 
 	/******************************************************************************
 	 *  Name: sendPingFrame
 	 *  Funktion: Sendet eine Pinganfrage oder -antwort.
 	 *  Parameter: Geräteinformationen, Anfrage (false) oder Antwort (true).
 	 ******************************************************************************/
-	void sendPingFrame(CanDevice device, bool response);
+	void sendPingFrame(CanDevice &device, bool response);
 
   /******************************************************************************
 	 *  Name: switchAccResponse
@@ -138,7 +141,7 @@ public:
 	 *  Parameter: Geräteinformationen, Local-ID des geschaltenden Zubehörs,
 	 *             Zustand des Zubehörs.
 	 ******************************************************************************/
-   void switchAccResponse(CanDevice device, uint32_t locId, bool state);
+   void switchAccResponse(CanDevice &device, uint32_t locId, bool state);
 
    /******************************************************************************
  	 *  Name: sendAccessoryFrame
@@ -146,8 +149,8 @@ public:
  	 *  Parameter: Geräteinformationen, Local-ID des zu schaltenden Zubehörs,
  	 *             Zustand des Zubehörs, Auftrag (false) oder Antwort (true).
  	 ******************************************************************************/
-	void sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response);
-  void sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response, bool power);
+	void sendAccessoryFrame(CanDevice &device, uint32_t locId, bool state, bool response);
+  void sendAccessoryFrame(CanDevice &device, uint32_t locId, bool state, bool response, bool power);
 
   /******************************************************************************
 	 *  Name: checkS88StateFrame
@@ -155,7 +158,7 @@ public:
 	 *  Parameter: Geräteinformationen, Gerätekennung, Kontaktkennung
 	 *              des abzufragenden Kontakt.
 	 ******************************************************************************/
-	void checkS88StateFrame(CanDevice device, uint16_t dev_id, uint16_t contact_id);
+	void checkS88StateFrame(CanDevice &device, uint16_t dev_id, uint16_t contact_id);
 
 	/******************************************************************************
 	 *  Name: getCanFrame
@@ -163,6 +166,9 @@ public:
 	 *  Rückgabe: CAN-Nachricht (MCANMSG).
 	 ******************************************************************************/
 	MCANMSG getCanFrame();
+	#if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
+	MCANMSG getCanFrame(CAN_message_t &frame);
+	#endif
 
 	/******************************************************************************
 	 *  Name: checkAccessoryFrame
@@ -173,7 +179,7 @@ public:
 	 *  Rückgabe: Nummer der Local-ID aus dem Feld, -1 bei unbekannter Local-ID
 	 *            oder wenn es sich nicht um einen Schaltauftrag handelt.
 	 ******************************************************************************/
-	int checkAccessoryFrame(MCANMSG can_frame, uint16_t locIds[], int accNum, bool response);
+	int checkAccessoryFrame(MCANMSG &can_frame, uint16_t locIds[], int accNum, bool response);
 
 	/******************************************************************************
 	 *  Name: saveConfigData
@@ -182,7 +188,7 @@ public:
 	 *            gerichtet.
 	 *  Parameter: Geräteinformationen, CAN-Nachricht.
 	 ******************************************************************************/
-	void saveConfigData(CanDevice device, MCANMSG can_frame);
+	void saveConfigData(CanDevice &device, MCANMSG &can_frame);
 
 	/******************************************************************************
 	 *  Name: getConfigDataFromEEPROM
@@ -196,7 +202,7 @@ public:
 	 *  Funktion: Sendet Antwort auf Konfigurationskanal
 	 *  Parameter: Konfigurationskanal
 	 ******************************************************************************/
-  void statusResponse(CanDevice device, int chanel);
+  void statusResponse(CanDevice &device, int chanel, bool success = true);
 
 	/******************************************************************************
 	 *  Name: canFrameToString
@@ -205,7 +211,7 @@ public:
 	 *             Nachricht.
 	 *  Rückgabe: Lesbarer String.
 	 ******************************************************************************/
-	String canFrameToString(MCANMSG can_frame, bool direction);
+	String canFrameToString(MCANMSG &can_frame, bool direction);
 private:
 };
 

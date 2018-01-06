@@ -4,17 +4,22 @@
  *  Do with this whatever you want, but keep thes Header and tell
  *  the others what you changed!
  *
- *  Last changed: 2017-01-09
+ *  Last changed: 2017-12-20
  */
 
 
 #include <Arduino.h>
 #include <MCAN.h>
-#include "mcp_can.h"
+#if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
+	#include <FlexCAN.h>
+	#include <kinetis_flexcan.h>
+#else
+	#include <mcp_can.h>
+	MCP_CAN Can0(10);
+#endif
 #include <EEPROM.h>
 
-MCP_CAN can(10);
-bool mcan_debug = 0;
+bool mcan_debug = false;
 
 uint16_t MCAN::generateHash(uint32_t uid){
 
@@ -42,34 +47,50 @@ uint16_t MCAN::getadrs(uint16_t prot, uint16_t locid){
 
 void MCAN::initMCAN(bool debug){
 
-	if(debug) {
-		//Serial.begin(250000);
-		mcan_debug = 1;
-  }
-	pinMode(9,OUTPUT);
-	digitalWrite(9,0);
-	if (can.begin(CAN_250KBPS) == CAN_OK){
-		digitalWrite(9,1);
+	if(debug) mcan_debug = true;
+	
+	#if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
+		/*
+		CAN_filter_t defaultMask;
+		defaultMask.flags.remote = 0;
+		defaultMask.flags.extended = 0;
+		defaultMask.id = 0;
+		Can0.begin(250000,0,1,1);
+		*/
+		Can0.setRxBufferSize(128);
+		Can0.begin();
 		if(mcan_debug) Serial.println("CAN-Init Successfull!");
-	}
-}
-void MCAN::initMCAN(){
-
-	pinMode(9,OUTPUT);
-	digitalWrite(9,0);
-	if (can.begin(CAN_250KBPS) == CAN_OK){
-		digitalWrite(9,1);
-	}
+	#else
+		if (Can0.begin(CAN_250KBPS) == CAN_OK){
+			if(mcan_debug) Serial.println("CAN-Init Successfull!");
+		}
+	#endif
 }
 
-void MCAN::sendCanFrame(MCANMSG can_frame){
+void MCAN::sendCanFrame(MCANMSG &can_frame){
 
 	uint32_t txId = can_frame.cmd;
 	txId = (txId << 17) | can_frame.hash;
 	bitWrite(txId, 16, can_frame.resp_bit);
 
-	can.sendMsgBuf(txId, 1, can_frame.dlc, can_frame.data);
-	Serial.println(canFrameToString(can_frame, 1));
+#if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
+	CAN_message_t outmsg;
+	outmsg.id = txId;
+	outmsg.ext = 1;
+	outmsg.len = can_frame.dlc;
+	for(int i = 0; i < can_frame.dlc; i++) {
+		outmsg.buf[i] = can_frame.data[i];
+	}
+	//outmsg.flags.extended = 1;
+	Can0.write(outmsg);
+#else
+	Can0.sendMsgBuf(txId, 1, can_frame.dlc, can_frame.data);
+#endif
+	if(mcan_debug) {
+		Serial.print(millis());
+		Serial.print(" - ");
+		Serial.println(canFrameToString(can_frame, 1));
+	}
 }
 
 void MCAN::sendDeviceInfo(CanDevice device, int configNum){
@@ -125,9 +146,9 @@ void MCAN::sendDeviceInfo(CanDevice device, int configNum){
 	sendCanFrame(can_frame);
 }
 
-void MCAN::sendConfigInfoDropdown(CanDevice device, uint8_t configChanel, uint8_t numberOfOptions, uint8_t defaultSetting, String settings){
+void MCAN::sendConfigInfoDropdown(CanDevice &device, uint8_t configChanel, uint8_t numberOfOptions, uint8_t defaultSetting, String settings){
 	MCANMSG can_frame;
-	int frameCounter;
+	int frameCounter = 0;
 
 	can_frame.cmd = CONFIG;
 	can_frame.resp_bit = 1;
@@ -181,9 +202,9 @@ void MCAN::sendConfigInfoDropdown(CanDevice device, uint8_t configChanel, uint8_
 	sendCanFrame(can_frame);
 }
 
-void MCAN::sendConfigInfoSlider(CanDevice device, uint8_t configChanel, uint16_t lowerValue, uint16_t upperValue, uint16_t defaultValue, String settings){
+void MCAN::sendConfigInfoSlider(CanDevice &device, uint8_t configChanel, uint16_t lowerValue, uint16_t upperValue, uint16_t defaultValue, String settings){
 	MCANMSG can_frame;
-	int frameCounter;
+	int frameCounter = 0;
 
 	can_frame.cmd = CONFIG;
 	can_frame.resp_bit = 1;
@@ -238,7 +259,7 @@ void MCAN::sendConfigInfoSlider(CanDevice device, uint8_t configChanel, uint16_t
 	sendCanFrame(can_frame);
 }
 
-void MCAN::sendPingFrame(CanDevice device, bool response){
+void MCAN::sendPingFrame(CanDevice &device, bool response){
 	MCANMSG can_frame;
 	can_frame.cmd = PING;
 	can_frame.hash = device.hash;
@@ -256,7 +277,7 @@ void MCAN::sendPingFrame(CanDevice device, bool response){
 	sendCanFrame(can_frame);
 }
 
-void MCAN::switchAccResponse(CanDevice device, uint32_t locId, bool state){
+void MCAN::switchAccResponse(CanDevice &device, uint32_t locId, bool state){
 
 	MCANMSG can_frame;
 
@@ -278,7 +299,7 @@ void MCAN::switchAccResponse(CanDevice device, uint32_t locId, bool state){
   sendCanFrame(can_frame);
 }
 
-void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response){
+void MCAN::sendAccessoryFrame(CanDevice &device, uint32_t locId, bool state, bool response){
 
 	MCANMSG can_frame;
 
@@ -295,7 +316,7 @@ void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool
 	sendCanFrame(can_frame);
 }
 
-void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool response, bool power){
+void MCAN::sendAccessoryFrame(CanDevice &device, uint32_t locId, bool state, bool response, bool power){
 
 	MCANMSG can_frame;
 
@@ -312,7 +333,7 @@ void MCAN::sendAccessoryFrame(CanDevice device, uint32_t locId, bool state, bool
 	sendCanFrame(can_frame);
 }
 
-void MCAN::checkS88StateFrame(CanDevice device, uint16_t dev_id, uint16_t contact_id){
+void MCAN::checkS88StateFrame(CanDevice &device, uint16_t dev_id, uint16_t contact_id){
 
 	MCANMSG can_frame;
 
@@ -331,22 +352,56 @@ MCANMSG MCAN::getCanFrame(){
 	uint32_t rxId;
 
 	MCANMSG can_frame;
-	can.readMsgBuf(&can_frame.dlc, can_frame.data);
-	rxId = can.getCanId();
+	#if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
+		CAN_message_t inmsg;
+		Can0.read(inmsg);
+		rxId = inmsg.id;
+		can_frame.dlc = inmsg.len;
+		for (int c = 0; c < inmsg.len; c++) {
+			can_frame.data[c] = inmsg.buf[c];
+		}
+	#else
+	 Can0.readMsgBuf(&can_frame.dlc, can_frame.data);
+	 rxId = Can0.getCanId();
+	#endif
 	can_frame.cmd = rxId >> 17;
 	can_frame.hash = rxId;
 	can_frame.resp_bit = bitRead(rxId, 16);
 
-	Serial.println(canFrameToString(can_frame, false));
+	if(mcan_debug) {
+		Serial.print(millis());
+		Serial.print(" - ");
+		Serial.println(canFrameToString(can_frame, false));
+	}
 
 	return can_frame;
 }
 
-int MCAN::checkAccessoryFrame(MCANMSG can_frame, uint16_t locIds[], int accNum, bool response){
+#if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
+MCANMSG MCAN::getCanFrame(CAN_message_t &frame){
+	MCANMSG can_frame;
+	can_frame.cmd = frame.id >> 17;
+	can_frame.hash = frame.id;
+	can_frame.resp_bit = bitRead(frame.id, 16);
+	can_frame.dlc = frame.len;
+	for (int c = 0; c < frame.len; c++) {
+		can_frame.data[c] = frame.buf[c];
+	}
+	if(mcan_debug) {
+		Serial.print(millis());
+		Serial.print(" - ");
+		Serial.println(canFrameToString(can_frame, false));
+	}
+
+	return can_frame;
+}
+#endif
+
+int MCAN::checkAccessoryFrame(MCANMSG &can_frame, uint16_t locIds[], int accNum, bool response){
 
 	uint16_t currentLocId = (can_frame.data[2] << 8) | can_frame.data[3];
 
-	if((can_frame.cmd == SWITCH_ACC) || (can_frame.resp_bit == response)){
+	if((can_frame.cmd == SWITCH_ACC) && (can_frame.resp_bit == response)){
 		for( int i = 0; i < accNum; i++){
 			if(currentLocId == locIds[i]) return i;
 		}
@@ -355,11 +410,11 @@ int MCAN::checkAccessoryFrame(MCANMSG can_frame, uint16_t locIds[], int accNum, 
 	return -1;
 }
 
-void MCAN::saveConfigData(CanDevice device, MCANMSG can_frame){
+void MCAN::saveConfigData(CanDevice &device, MCANMSG &can_frame){
 
 	int chanel = can_frame.data[5] - 1;
 
-	Serial.println("Saving Config Data...");
+	if(mcan_debug) Serial.println("Saving Config Data...");
 
 	//EEPROM.put((chanel*2), can_frame.data[6]);
 	//EEPROM.put((chanel*2) + 1, can_frame.data[7]);
@@ -382,7 +437,7 @@ uint16_t MCAN::getConfigDataFromEEPROM(int chanel){
 	return (EEPROM.read((chanel*2) << 8) + EEPROM.read((chanel*2) + 1));
 }
 
-void MCAN::statusResponse(CanDevice device, int chanel){
+void MCAN::statusResponse(CanDevice &device, int chanel, bool success){
 	MCANMSG can_frame_out;
 
   can_frame_out.cmd = SYS_CMD;
@@ -395,13 +450,13 @@ void MCAN::statusResponse(CanDevice device, int chanel){
   can_frame_out.data[3] = device.uid;
   can_frame_out.data[4] = SYS_STAT;
   can_frame_out.data[5] = chanel;
-  can_frame_out.data[6] = true;
+  can_frame_out.data[6] = success;
   can_frame_out.data[7] = 0;
 
   sendCanFrame(can_frame_out);
 }
 
-String MCAN::canFrameToString(MCANMSG can_frame, bool direction){
+String MCAN::canFrameToString(MCANMSG &can_frame, bool direction){
 
 	String direction_s;
 	String cmd = String(can_frame.cmd, HEX);
