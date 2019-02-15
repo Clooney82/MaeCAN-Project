@@ -24,6 +24,7 @@
 #define MCAN_STELLPULT 0x0053
 #define MCAN_S88_GBS 0x0054
 #define MCAN_TOR_ANTRIEB 0x0055
+#define MCAN_GBS2 0x0056
 
 
 /*

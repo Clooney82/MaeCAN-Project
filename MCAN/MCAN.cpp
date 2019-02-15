@@ -48,7 +48,7 @@ uint16_t MCAN::getadrs(uint16_t prot, uint16_t locid){
 void MCAN::initMCAN(bool debug){
 
 	if(debug) mcan_debug = true;
-	
+
 	#if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
 		/*
 		CAN_filter_t defaultMask;
@@ -76,12 +76,16 @@ void MCAN::sendCanFrame(MCANMSG &can_frame){
 #if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
 	CAN_message_t outmsg;
 	outmsg.id = txId;
-	outmsg.ext = 1;
+	//outmsg.ext = 1;
 	outmsg.len = can_frame.dlc;
+
 	for(int i = 0; i < can_frame.dlc; i++) {
 		outmsg.buf[i] = can_frame.data[i];
 	}
-	//outmsg.flags.extended = 1;
+	//outmsg.buf = can_frame.data;
+
+	outmsg.flags.extended = 1;
+	outmsg.flags.remote = 0;
 	Can0.write(outmsg);
 #else
 	Can0.sendMsgBuf(txId, 1, can_frame.dlc, can_frame.data);
