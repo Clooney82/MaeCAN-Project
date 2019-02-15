@@ -42,6 +42,10 @@ uint16_t MCAN::generateLocId(uint16_t prot, uint16_t adrs){
 }
 
 uint16_t MCAN::getadrs(uint16_t prot, uint16_t locid){
+
+	if(prot == 0) prot = DCC_ACC;
+	if(prot == 1) prot = MM_ACC;
+
   return (locid + 1 - prot);
 }
 
