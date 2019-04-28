@@ -32,9 +32,46 @@ uint8_t MCP23017::readRegister(uint8_t addr){
  */
 void MCP23017::writeRegister(uint8_t regAddr, uint8_t regValue){
 	Wire.beginTransmission(MCP23017_ADDRESS | i2caddr);
+
+	#ifdef DEBUG
+		Serial.print("mcp23017 | writeRegister | beginTransmission");
+		Serial.print(" | Status: ");
+		Serial.print(Wire.status());
+		Serial.print(" | Error: ");
+		Serial.println(Wire.getError());
+	#endif
+
 	Wire.write(regAddr);
+
+	#ifdef DEBUG
+		Serial.print("mcp23017 | writeRegister | write(regAddr) ");
+		Serial.print(regAddr);
+		Serial.print(" | Status: ");
+		Serial.print(Wire.status());
+		Serial.print(" | Error: ");
+		Serial.println(Wire.getError());
+	#endif
+
 	Wire.write(regValue);
+
+	#ifdef DEBUG
+		Serial.print("mcp23017 | writeRegister | write(regValue) ");
+		Serial.print(regValue);
+		Serial.print(" | Status: ");
+		Serial.print(Wire.status());
+		Serial.print(" | Error: ");
+		Serial.println(Wire.getError());
+	#endif
+
 	Wire.endTransmission();
+
+	#ifdef DEBUG
+		Serial.print("mcp23017 | writeRegister | endTransmission");
+		Serial.print(" | Status: ");
+		Serial.print(Wire.status());
+		Serial.print(" | Error: ");
+		Serial.println(Wire.getError());
+	#endif
 }
 
 /**
@@ -54,32 +91,6 @@ void MCP23017::updateRegisterBit(uint8_t pin, uint8_t pinValue, uint8_t portAadd
 }
 
 /**
- * Initializes the MCP23017 given its HW selected address, see datasheet for Address selection.
- */
-/*
-void MCP23017::begin(uint8_t addr) {
-	if (addr > 7) {
-		addr = 7;
-	}
-	i2caddr = addr;
-
-	Wire.begin();
-
-	// set defaults!
-	// all inputs on port A and B
-	writeRegister(MCP23017_IODIRA, 0xff);
-	writeRegister(MCP23017_IODIRB, 0xff);
-}
-*/
-/**
- * Initializes the default MCP23017, with 000 for the configurable part of the address
- */
-/*
-void MCP23017::begin(void) {
-	begin(0);
-}
-*/
-/**
  * Initializes MCP23017, on given I2C interface (only teensy, needs i2c_t3 library)
  * default pin setting SCL/SDA:
  *  * Wire : 19/18
@@ -90,14 +101,16 @@ void MCP23017::begin(void) {
 void MCP23017::begin(uint8_t addr, uint8_t wirebus) {
 	#if ( defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))	// teensy 3.0/3.1-3.2/LC/3.5/3.6
 		if ( wirebus == 1 ) {
-			Wire = Wire1;
-		#if ( defined(__MK64FX512__) || defined(__MK66FX1M0__))
+			Wire = i2c_t3(1);
+		#if ( defined(__MK64FX512__) || defined(__MK66FX1M0__))	// teensy 3.5/3.6
 			} else if ( wirebus == 2 ) {
-				Wire = Wire2;
+				Wire = i2c_t3(2);
 		#endif
-		#if defined(__MK66FX1M0__)	// teensy 3.0/3.1-3.2/LC/3.5/3.6
+		#if ( defined(__MK66FX1M0__))	// teensy 3.6
 			} else if ( wirebus == 3 ) {
-				Wire = Wire3;
+				Wire = i2c_t3(3);
+			} else if ( wirebus == 0 ) {
+				Wire = i2c_t3(0);
 		#endif
 		}
 	#endif
@@ -106,10 +119,39 @@ void MCP23017::begin(uint8_t addr, uint8_t wirebus) {
 	}
 	i2caddr = addr;
 
+	#ifdef DEBUG
+		Serial.print("mcp23017 | begin | I2C-Bus: ");
+		Serial.print(wirebus);
+		Serial.print(" | SCL Pin: ");
+		Serial.print(Wire.getSCL());
+		Serial.print(" | SDA Pin: ");
+		Serial.print(Wire.getSDA());
+		Serial.print(" | Status: ");
+		Serial.print(Wire.status());
+		Serial.print(" | Error: ");
+		Serial.println(Wire.getError());
+	#endif
+
+	#if ( defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))	// teensy 3.0/3.1-3.2/LC/3.5/3.6
+		Wire.setDefaultTimeout(10);
+	#endif
+	
 	Wire.begin();
+
+	#ifdef DEBUG
+		Serial.print("mcp23017 | begin");
+		Serial.print(" | Status: ");
+		Serial.print(Wire.status());
+		Serial.print(" | Error: ");
+		Serial.println(Wire.getError());
+	#endif
 
 	writeRegister(MCP23017_IODIRA, 0xff);
 	writeRegister(MCP23017_IODIRB, 0xff);
+
+	#ifdef DEBUG
+		Serial.println("MCP23017 running...");
+	#endif
 }
 
 /**

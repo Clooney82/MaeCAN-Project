@@ -8,6 +8,8 @@
 	#include <Wire.h>
 #endif
 
+//#define DEBUG
+
 class MCP23017 {
 public:
 	void begin(uint8_t addr = 0, uint8_t wirebus = 0);
