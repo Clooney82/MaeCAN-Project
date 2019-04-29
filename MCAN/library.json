@@ -1,0 +1,22 @@
+{
+	"name": "MCAN Library",
+	"frameworks": "Ardiuino",
+	"keywords": "MCAN, MaeCAN",
+	"description": "Die MCAN-Bibliothek dient dazu, eine einfache Möglichkeit zu haben, auf den Märklin CAN-Bus zuzugreifen.",
+	"authors:"
+	[
+		{
+			"name": "Ixam97",
+			"url": "https://github.com/Ixam97/MaeCAN-Project"
+		},
+		{
+			"name": "Clooney82",
+			"url": "https://github.com/Clooney82/MaeCAN-Project"
+		}
+	],
+	"repository":
+	{
+		"type": "git",
+		"url":	"https://github.com/Ixam97/MaeCAN-Project/tree/master/MCAN"
+	}
+}

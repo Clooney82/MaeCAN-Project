@@ -10,10 +10,7 @@
 
 #include <Arduino.h>
 #include <MCAN.h>
-#if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
-	#include <FlexCAN.h>
-	#include <kinetis_flexcan.h>
-#else
+#if !(defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
 	#include <mcp_can.h>
 	MCP_CAN Can0(10);
 #endif
@@ -39,6 +36,14 @@ uint16_t MCAN::generateLocId(uint16_t prot, uint16_t adrs){
 	if(prot == 1) prot = MM_ACC;
 
 	return (prot + adrs - 1);
+}
+
+uint16_t MCAN::getadrs(uint16_t locid){
+	uint16_t prot;
+	if ( locid > 0x3000 || locid < 0x33FF ) prot = MM_ACC;
+	if ( locid > 0x3800 || locid < 0x3FFF ) prot = DCC_ACC;
+
+  return (locid + 1 - prot);
 }
 
 uint16_t MCAN::getadrs(uint16_t prot, uint16_t locid){
@@ -101,7 +106,7 @@ void MCAN::sendCanFrame(MCANMSG &can_frame){
 	}
 }
 
-void MCAN::sendDeviceInfo(CanDevice device, int configNum){
+void MCAN::sendDeviceInfo(CanDevice &device, int configNum){
 	/*
 	 *  Sendet die Basisinformationen über das Gerät an die GUI der CS2.
 	 */
@@ -420,7 +425,7 @@ int MCAN::checkAccessoryFrame(MCANMSG &can_frame, uint16_t locIds[], int accNum,
 
 void MCAN::saveConfigData(CanDevice &device, MCANMSG &can_frame){
 
-	int chanel = can_frame.data[5] - 1;
+//	int chanel = can_frame.data[5] - 1;
 
 	if(mcan_debug) Serial.println("Saving Config Data...");
 

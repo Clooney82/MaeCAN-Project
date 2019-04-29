@@ -88,6 +88,7 @@ public:
 	 *  Funktion: Adress aus der Local-ID und dem Protokoll berechnen.
 	 *  Parameter: Protokollbasis (siehe hoben), Local-ID
 	 ******************************************************************************/
+	uint16_t getadrs(uint16_t locid);
   uint16_t getadrs(uint16_t prot, uint16_t locid);
 
 	/******************************************************************************
@@ -110,7 +111,7 @@ public:
 	 *            Zentrale. Antwort auf Konfig-kanal 0.
 	 *  Parameter: Geräteinformationen (CanDevice), Anzahl der Konfig-Kanäle.
 	 ******************************************************************************/
-	void sendDeviceInfo(CanDevice device, int configNum);		//IMMER Kanal 0!
+	void sendDeviceInfo(CanDevice &device, int configNum);		//IMMER Kanal 0!
 
 	/******************************************************************************
 	 *  Name: sendConfigDropdown
