@@ -8,7 +8,7 @@ void blink_LED() {
 
 
 //#############################################################################
-// Erfolgreiches Setup signalisieren
+// Setup successfull
 //#############################################################################
 void signal_setup_successfull(){
   for(int i=0; i < 20; i++){
@@ -19,6 +19,7 @@ void signal_setup_successfull(){
 
 
 //#############################################################################
+// DE: 
 // Ausführen, wenn eine Nachricht verfügbar ist.
 // Nachricht wird geladen und anhängig vom CAN-Befehl verarbeitet.
 //#############################################################################

@@ -1,25 +1,19 @@
 /******************************************************************************
- * Allgemeine Setup Daten:
+ * Common setup data:
  ******************************************************************************/
 bool     use_L88 = true;  // use_L88 => false = USE CS2/3 S88 Bus ; true = USE Link L88
-uint16_t modulID = 179;   // ID des Link L88                  - MODIFIED - DEFAULT: 0
+uint16_t modulID = 0;   // ID of Link L88                  - MODIFIED - DEFAULT: 0
 
-const uint8_t ANZ_S88_ADDONS = 4;         // Anzahl AddOn S88 Platinen (max 8 pro I2C Bus)
-const uint8_t ANZ_S88_PER_ADDON = 16;     // DEFAULT: 16 pro AddOn
+const uint8_t ANZ_S88_ADDONS = 1;        // Number of S88 AddOns (max 8 per I2C Bus)
+const uint8_t ANZ_S88_PER_ADDON = 16;     // DEFAULT: 16 per AddOn
 
-/* default
 bool     use_bus[4]   = { 1, 0, 0, 0 };
 uint16_t start_bus[4] = { 1, 1, 1, 1 };
 uint8_t  len_bus[4]   = { 1, 1, 1, 1 };
-*/
 
-bool     use_bus[]   = { 1, 1, 1, 0 };
-uint16_t start_bus[] = { 1, 1, 1, 1 };
-uint8_t  len_bus[]   = { 1, 6, 4, 1 };   // 1 + 6 + 4 = 11x S88 AddOn Module
-
-/*  use_bus[4] = { Link L88 Interner BUS0 (1-16) oder CS2/3plus , Link L88 BUS1 , Link L88 BUS2 , Link L88 BUS3 }
- *  start_bus[4] mit welchem S88 Modul am jeweiligen BUS soll begonnen werden
- *  len_bus[4] wie viele S88 Module sind am jeweiligen BUS angeschlossen
+/*  use_bus[4]    = { Link L88 Interner BUS0 (1-16) oder CS2/3plus , Link L88 BUS1 , Link L88 BUS2 , Link L88 BUS3 }
+ *  start_bus[4]  = start with S88 Modul # on defined BUS
+ *  len_bus[4]    = number of S88 Moduls on defined BUS
  */
 
 /******************************************************************************
@@ -47,9 +41,11 @@ uint8_t  len_bus[]   = { 1, 6, 4, 1 };   // 1 + 6 + 4 = 11x S88 AddOn Module
 const int NUM_S88 = ANZ_S88_ADDONS * ANZ_S88_PER_ADDON;
 
 typedef struct {
-  uint16_t rm;
-  bool state_is;        // aktueller LED Schaltzustand - kann ggf. weggelassen werden, dann werden aber in jedem loop() die LEDs neu angesteuert
-  bool state_set;       // LED Soll Zustand
+  uint16_t rm;          // RM Adress
+  bool state_is;        // current LED State
+  bool state_set;       // target  LED State
+  uint8_t i2c_bus = 0;  // I2C Bus
+  uint8_t board_num = 0;// Board# on I2C-BUS (0-4)
 } s88_contacts_struct;
 
 uint8_t bus         = 0;
@@ -65,12 +61,11 @@ uint16_t last_bus[4];
 s88_contacts_struct s88_contacts[NUM_S88];
 
 /******************************************************************************
- * Variablen für das initiale abfragen der Rückmeldekontakte
+ * variables for initial scanning of feedback contacts
  ******************************************************************************/
-uint8_t CONFIG_NUM_S88;   // Anzahl der Konfigurationspunkte
+uint8_t CONFIG_NUM_S88;
 uint8_t checked_S88 = 0;
 unsigned long currentMillis_s88read = 0;
 unsigned long previousMillis_s88read = 0;
-const long interval_s88read = 200;
+const long interval_s88read = 20;
 bool new_s88_setup_needed = false;
-

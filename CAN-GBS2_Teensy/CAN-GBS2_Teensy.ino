@@ -1,15 +1,28 @@
-unsigned long run = 0 ;
 /*
-   MäCAN-GBS2-AddOn , Software-Version 0.1
+   MäCAN-GBS2-AddOn
 
     Created by Maximilian Goldschmidt <maxigoldschmidt@gmail.com>
     Modified by Jochen Kielkopf.
     Do with this whatever you want, but keep thes Header and tell
     the others what you changed!
 
-    Last edited: 2019-02-15
+    Last edited: 2019-04-29
 
     Changelog:
+ *  * v0.3:
+      - fixes for turntable control
+      - fixes for SINGLE_BUTTON inputs
+      - fix wire0 to wire3 handly on teensy boards (new library needed)
+      - DEFAULT: only wire0 is enabled
+      - DEFAULT: 1x S88 and 1x Input (with LED_FEEDBACK) enabled
+ *  * v0.2:
+      - Cheange some switch cases into if states
+      - added onboard handles for DS and GBS locking
+      - added File:
+        + 05-onboard.h                 -> functions to handle onboard stuff like GBS Locking.
+      - added ACC Type: SINGLE_BUTTON input. Toggles between red and green
+      - removed onboard functions for MäCAN Decoder, only AddOn Modules supported.
+      - started English translation of code comments
  *  * v0.1:
       - Combined Version of MäCAN-S88-GBS and MäCAN-INPUT Addon
       - Modified for teensy support
@@ -34,31 +47,26 @@ unsigned long run = 0 ;
         + if you want to Monitor multiple Link S88 you´ll need multiple CAN-Decoders
       - S88 part will be on the first, then INPUT part
       - S88 and INPUT modules can be on the same I2C bus
- *  * v0.2:
-      -
-      -
+      - max S88 RMs = 512 ( 8 Moduls x 4 I2C Busses x 16 RMs per Modul )
+      - max INPUTs ( with LED_FEEDBACK )    = 128 ( 8 Moduls x 4 I2C Busses x 4 Inputs per Modul )
+      - max INPUTs ( without LED_FEEDBACK ) = 256 ( 8 Moduls x 4 I2C Busses x 8 Inputs per Modul )
 
 */
 #include <MCAN.h>
 #include <EEPROM.h>
-#if (defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))  // teensy 3.0/3.1-3.2/LC/3.5/3.6
-#include <mcp23017.h>
-#include <FlexCAN.h>
-#else
-#include <Adafruit_MCP23017.h>
-#endif
+
 MCAN mcan;
 CanDevice device;
 
 #include "01-Configuration_01_global.h" // This file contains the configuration of the program (Pin numbers, Options, ...)
 #include "01-Configuration_02_S88.h"    // This file contains the configuration of the S88 Part 
 #include "01-Configuration_03_input.h"  // This file contains the configuration of the Input Part
+#include "05-onboard.h"                 // This file handles teensy onboard INPUT/OUTPUT
 #include "02-CAN-Stuff.h"               // This file contains the complete CAN handling stuff
 #include "03-Functions_01_global.h"     // This file contains the global used functions
 #include "03-Functions_02_S88.h"        // This file contains the s88 functions
 #include "04-OwnSetup.h"                // This file contains the manual config for the ACCs
 #include "03-Functions_03_input.h"      // This file contains the input functions
-//#include "05-other.h"                 // This file contains the other stuff
 
 
 //#############################################################################
@@ -71,7 +79,7 @@ void setup() {
 #endif
 #ifdef DEBUG_SETUP
   Serial.println("-----------------------------------");
-  Serial.println(" - Setup                         - ");
+  Serial.println("-- Setup                         --");
   Serial.println("-----------------------------------");
 #endif
 
@@ -127,13 +135,13 @@ void setup() {
   blink_LED();
 
 
-  //Geräteinformationen:
+  // Deviceinformations:
   device.versHigh = VERS_HIGH;
-  device.versLow = VERS_LOW;
-  device.hash = mcan.generateHash(UID);;
-  device.uid = UID;
-  device.artNum = "00056";
-  device.name = "MäCAN GBS2";
+  device.versLow  = VERS_LOW;
+  device.hash = mcan.generateHash(UID);
+  device.uid  = UID;
+  device.artNum = "00054";
+  device.name = "MäCAN GBS v2";
   device.boardNum = BOARD_NUM;
   device.type = MCAN_GBS2;
 
@@ -143,16 +151,22 @@ void setup() {
 #endif
 #ifdef DEBUG_SERIAL
   Serial.println("-----------------------------------");
+  Serial.print(" - Board:      ");
+  Serial.println(device.name);
   Serial.print(" - Board-UID:  ");
   Serial.println(UID);
+  Serial.print(" - Version:    ");
+  Serial.print(VERS_HIGH);
+  Serial.print(".");
+  Serial.println(VERS_LOW);
   Serial.print(" - Board-Num:  ");
   Serial.println(BOARD_NUM);
-  Serial.print(" - Config Num: ");
-  Serial.println(CONFIG_NUM_S88);
-  Serial.print(" - Num RMs:   ");
+  Serial.print(" - Num RMs:    ");
   Serial.println(NUM_S88);
+  Serial.print(" - Num ACCS:   ");
+  Serial.println(NUM_ACCs);
   Serial.println("-----------------------------------");
-  Serial.println(" - Device will now prepared...     -");
+  Serial.println("-- preparing device...           --");
   Serial.println("-----------------------------------");
   delay(100);
 #endif
@@ -160,8 +174,14 @@ void setup() {
 
   setup_s88();
   test_s88_leds();
-
+  
   setup_input();
+  #ifdef LED_FEEDBACK
+    test_acc_leds();
+    restore_last_state();
+  #endif
+
+  setup_onboard();
 
 
 #ifdef DEBUG_MCAN
@@ -183,7 +203,12 @@ void setup() {
 #endif
 
   blink_LED();
-
+#ifdef DEBUG_SERIAL
+  Serial.println("-----------------------------------");
+  Serial.println(" - Setup finished");
+  Serial.println("-----------------------------------");
+  Serial.println("");
+#endif  
 }
 
 
@@ -191,12 +216,8 @@ void setup() {
 // Main loop
 //#############################################################################
 void loop() {
-  /*
-    Serial.print("loop:");
-    Serial.println(run);
-    run++;
-  */
 #ifdef run_fake_acc_commands
+  // only if uncoupler is active ( WARNING !!! IF CS2/3 is connected )
   if (acc_articles[tmp].acc_type == 1) button_pushed(tmp, acc_articles[tmp].state_set, BUTTON_PRESSED);
 #endif
   //==================================================================================================
@@ -215,19 +236,7 @@ void loop() {
 #ifdef run_fake_s88_events
     int randoms88 = random(0, NUM_S88);
     interval = random(100, 500);
-    //s88_contacts[randoms88].state_set = random(0, 1);
     s88_contacts[randoms88].state_set = !s88_contacts[randoms88].state_set;
-    /*
-    Serial.print("...");
-    Serial.print(randoms88);
-    Serial.print(" - RM: ");
-    Serial.print(s88_contacts[randoms88].rm);
-    Serial.print(" IST:");
-    Serial.print(s88_contacts[randoms88].state_is);
-    Serial.print(" SOLL:");
-    Serial.print(s88_contacts[randoms88].state_set);
-    Serial.println();
-    */
 #endif
 #ifdef run_fake_acc_commands
     button_pushed(tmp, acc_articles[tmp].state_set, BUTTON_NOT_PRESSED);
@@ -241,6 +250,11 @@ void loop() {
   // START - CONFIG_POLL
   //================================================================================================
   //------------------------------------------------------------------------------------------------
+  // EN:
+  // If config is requestet no S88 events or so will be procesed.
+  // Cause: Sending config should not take to much time
+  //        No S88 Events are lost.
+  // DE: 
   // Wenn Konfig angefragt keine Abarbeitung von S88 Events oder sonstigem.
   // Grund: Die Abarbeitung der Konfig abfrage, sollte nicht zu lange dauern
   //        Es gehen dabei keine S88 Events verloren.
@@ -251,21 +265,32 @@ void loop() {
 
   } else {
     //================================================================================================
-    // LEDs schalten für S88 Anzeige
+    // switch LEDs for S88
     //================================================================================================
     if (new_s88_setup_needed) {
       setup_s88();
-      //read_all_s88_contact();   // Liest alle S88 Kontakte aus, dauert je nach Anzahl sehr lange
+      //read_all_s88_contact();   // reads status of all S88 contacts. Runtime could be very long, depends on number of S88 contacts.
     }
     s88_loop();
     //================================================================================================
-    // INPUT STELL SCHLEIFE
+    // Lock GBS INPUT
+    //================================================================================================
+    check_lock();
+
+    //================================================================================================
+    // INPUT & TURNTABLE loop
     //================================================================================================
     input_loop();
+    if (!GBS_locked) {
+      
+      // TURNTABLE
+      check_DS_input();
+    }
+    
   }
 }
 
 
 //#############################################################################
-// ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE ENDE
+// END END END END END END END END END END END END END END END END END END END
 //#############################################################################

@@ -1,6 +1,6 @@
 /******************************************************************************
- * Hintergrundklasse:
- * - prüft eingehende CAN Daten
+ * Background Class:
+ * - checks incommong CAN Data
  ******************************************************************************/
 #if (defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))  // teensy 3.0/3.1-3.2/LC/3.5/3.6
 class BackgroundClass : public CANListener {
@@ -20,11 +20,11 @@ public:
 void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &frame)
 {
   //==================================================================================================
-  // Frames ohne UID
+  // Frames without UID
   //==================================================================================================
   if ((mcan_frame_in.cmd == PING) && (mcan_frame_in.resp_bit == 0)) {
     //------------------------------------------------------------------------------------------------
-    // START - PING Frame           - Auf Ping Request antworten
+    // START - PING Frame
     //------------------------------------------------------------------------------------------------
     #ifdef DEBUG_CAN
       Serial.print(millis());
@@ -33,17 +33,17 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
     mcan.sendPingFrame(device, true);
 
     //------------------------------------------------------------------------------------------------
-    // ENDE - PING Frame
+    // END - PING Frame
     //------------------------------------------------------------------------------------------------
    } else if ((mcan_frame_in.cmd == SWITCH_ACC) && (mcan_frame_in.resp_bit == 0)) {
     //------------------------------------------------------------------------------------------------
-    // START - ACC Frame            - Püfen auf Schaltbefehle
+    // START - ACC Frame
     //------------------------------------------------------------------------------------------------
     uint16_t locid = (mcan_frame_in.data[2] << 8) | mcan_frame_in.data[3];
     #ifdef DEBUG_CAN
       Serial.print(millis());
       Serial.print(" - Recieved ACC-Frame for ACC (local ID): ");
-      //Serial.println(mcan.getadrs(prot, locid));
+      Serial.println(mcan.getadrs(locid));
       Serial.println(locid);
     #endif
     
@@ -59,12 +59,17 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
       }
 
     }
+
+    // Turntable                                        // MODIFIED: DELETE
+    set_current_DS_pos(locid, mcan_frame_in.data[4]);   // MODIFIED: DELETE
+
+    
     //------------------------------------------------------------------------------------------------
-    // ENDE - ACC Frame
+    // END - ACC Frame
     //------------------------------------------------------------------------------------------------
   } else if((mcan_frame_in.cmd == S88_EVENT) && (mcan_frame_in.resp_bit == 1)){
     // ------------------------------------------------------------------------------------------------
-    // START - S88 Frame            - Püfen auf S88 Events
+    // START - S88 Frame
     // ------------------------------------------------------------------------------------------------
     uint16_t incoming_modulID = (mcan_frame_in.data[0] << 8 | mcan_frame_in.data[1]);   // bsp. 0x00b3 => 179 (L88)
     uint16_t kontakt = (mcan_frame_in.data[2] << 8 | mcan_frame_in.data[3]);            // bsp. 0x03fe => 1022 => Bus 1, Modul 2, Kontakt 6
@@ -89,11 +94,11 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
       }
     }
     // ------------------------------------------------------------------------------------------------
-    // ENDE - S88 Frame
+    // END - S88 Frame
     // ------------------------------------------------------------------------------------------------
   } else if ((uid_mat[0] == mcan_frame_in.data[0]) && (uid_mat[1] == mcan_frame_in.data[1]) && (uid_mat[2] == mcan_frame_in.data[2]) && (uid_mat[3] == mcan_frame_in.data[3])) {
   //==================================================================================================
-  // Befehle nur für eine UID
+  // Command for specific UID
   //==================================================================================================
     #ifdef DEBUG_CAN
       Serial.print(millis());
@@ -101,7 +106,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
     #endif
     if ((mcan_frame_in.cmd == CONFIG) && (mcan_frame_in.resp_bit == 0)) {
       //----------------------------------------------------------------------------------------------
-      // START - Config Frame       -
+      // START - Config Frame
       //----------------------------------------------------------------------------------------------
       #ifdef DEBUG_CAN
         Serial.print(millis());
@@ -111,15 +116,15 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
       config_poll = true;
       config_index = mcan_frame_in.data[4];
       //----------------------------------------------------------------------------------------------
-      // ENDE - Config Frame
+      // END - Config Frame
       //----------------------------------------------------------------------------------------------
     } else if ((mcan_frame_in.cmd == SYS_CMD) && (mcan_frame_in.resp_bit == 0) && (mcan_frame_in.data[4] == SYS_STAT)) {
       //----------------------------------------------------------------------------------------------
-      // START - Status Frame       -
+      // START - Status Frame
       //----------------------------------------------------------------------------------------------
       if(CONFIG_NUM_S88 == 4) {
         //--------------------------------------------------------------------------------------------
-        // CS2/CS3plus - S88 Bus Konfiguration
+        // CS2/CS3plus - S88 Bus configuration
         //--------------------------------------------------------------------------------------------
         switch (mcan_frame_in.data[5]) {
         case 1:       // use_L88       -- CS2/3 (false) oder Links L88 (true) 
@@ -131,14 +136,14 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
             new_s88_setup_needed = true;
           }
           break;
-        case 2:       // Gerätekennung
+        case 2:       // Device ID
           if(modulID != (mcan_frame_in.data[6] << 8 | mcan_frame_in.data[7]) ) {
             EEPROM.put(REG_modulID,   mcan_frame_in.data[6]);
             EEPROM.put(REG_modulID+1, mcan_frame_in.data[7]);
             new_s88_setup_needed = true;
           }
           break;
-        case 3:       // Länge Bus
+        case 3:       // Bus length
           if(len_bus[0] != mcan_frame_in.data[7]) {
             EEPROM.put(REG_len_bus0, mcan_frame_in.data[7]);
             new_s88_setup_needed = true;
@@ -153,7 +158,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
         }
       } else if (CONFIG_NUM_S88 == 12) {
         //--------------------------------------------------------------------------------------------
-        // Link L88 - S88 Bus Konfiguration
+        // Link L88 - S88 Bus configuration
         //--------------------------------------------------------------------------------------------
         switch (mcan_frame_in.data[5]) {
         case 1:       // use_L88       -- CS2/3 (false) oder Links L88 (true) 
@@ -165,7 +170,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
             new_s88_setup_needed = true;
           }
           break;
-        case 2:       // Gerätekennung
+        case 2:       // Device ID
           if(modulID != (mcan_frame_in.data[6] << 8 | mcan_frame_in.data[7]) ) {
             EEPROM.put(REG_modulID,   mcan_frame_in.data[6]);
             EEPROM.put(REG_modulID+1, mcan_frame_in.data[7]);
@@ -186,7 +191,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
             new_s88_setup_needed = true;
           }
           break;
-        case 5:       // Länge Link L88 BUS1
+        case 5:       // Length Link L88 BUS1
           if (len_bus[1] != mcan_frame_in.data[7]) {
             EEPROM.put(REG_len_bus1, mcan_frame_in.data[7]);
             new_s88_setup_needed = true;
@@ -204,7 +209,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
             new_s88_setup_needed = true;
           }
           break;
-        case 8:       // Länge Link L88 BUS2
+        case 8:       // Length Link L88 BUS2
           if (len_bus[2] != mcan_frame_in.data[7]) {
             EEPROM.put(REG_len_bus2, mcan_frame_in.data[7]);
             new_s88_setup_needed = true;
@@ -222,7 +227,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
             new_s88_setup_needed = true;
           }
           break;
-        case 11:       // Länge Link L88 BUS3
+        case 11:       // Length Link L88 BUS3
           if (len_bus[3] != mcan_frame_in.data[7]) {
             EEPROM.put(REG_len_bus3, mcan_frame_in.data[7]);
             new_s88_setup_needed = true;
@@ -238,11 +243,11 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
       }
       mcan.statusResponse(device, mcan_frame_in.data[5]);
       //----------------------------------------------------------------------------------------------
-      // ENDE - Status Frame
+      // END - Status Frame
       //----------------------------------------------------------------------------------------------
     }
   //==================================================================================================
-  // ENDE - Befehle nur für eine UID
+  // END
   //==================================================================================================
   } else if ((mcan_frame_in.cmd == SYS_CMD) && (mcan_frame_in.resp_bit == 0)) {
       if ( ( (uid_mat[0] == mcan_frame_in.data[0]) && 
@@ -261,7 +266,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
       uint8_t sub_cmd = mcan_frame_in.data[4];
       if ( (sub_cmd == SYS_STOP) || (sub_cmd == SYS_HALT) ) {
         //--------------------------------------------------------------------------------------------
-        // STOP oder HALT             - Eingaben verhindern.
+        // STOP oder HALT
         //--------------------------------------------------------------------------------------------
         #ifdef DEBUG_CAN
           Serial.print(millis());
@@ -271,7 +276,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
 
       } else if (sub_cmd == SYS_GO) {
         //--------------------------------------------------------------------------------------------
-        // GO                         - Eingaben zulassen.
+        // GO
         //--------------------------------------------------------------------------------------------
         #ifdef DEBUG_CAN
           Serial.print(millis());
@@ -282,7 +287,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
       }
     }
     //------------------------------------------------------------------------------------------------
-    // ENDE - STOP / GO / HALT
+    // END - STOP / GO / HALT
     //------------------------------------------------------------------------------------------------
   }
   

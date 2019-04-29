@@ -1,118 +1,40 @@
 //#############################################################################
-// Manuelles configurieren der Adressen, wenn sich UID ändert.
+// manual config, when UID changed
 //#############################################################################
 void config_own_adresses_manual() {
   uint16_t adrsss;
   for (int i = 0; i < NUM_ACCs; i++) {
     acc_articles[i].reg_locid = (200 + (6 * (i + 1)) - 5);
+    acc_articles[i].reg_prot  = (200 + (6 * (i + 1)) - 2);
     #ifdef LED_FEEDBACK
       acc_articles[i].reg_state = (200 + (6 * (i + 1)) - 1);
     #endif
     acc_articles[i].reg_type  = (200 + (6 * (i + 1))    );
     switch (i) {
       case 0:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
+        acc_articles[i].acc_type = TYPE_UNCOUPLER;   // 0 = Turnout/Signal ; 1 = Uncoupler
+        acc_articles[i].prot = ACC_MM;  // 0 = ACC_DCC oder 1 = ACC_MM;
+        adrsss = 44;
         break;
       case 1:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
+        acc_articles[i].acc_type = TYPE_TURNOUT;   // 0 = Turnout/Signal ; 1 = Uncoupler
+        acc_articles[i].prot = ACC_DCC;  // 0 = ACC_DCC oder 1 = ACC_MM;
+        adrsss = 43;
         break;
       case 2:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
+        acc_articles[i].acc_type = TYPE_SINGLE_BUTTON;   // 0 = Turnout/Signal ; 1 = Uncoupler
+        acc_articles[i].prot = ACC_MM;  // 0 = ACC_DCC oder 1 = ACC_MM;
+        adrsss = 42;
         break;
       case 3:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
+        acc_articles[i].acc_type = TYPE_UNCOUPLER;   // 0 = Turnout/Signal ; 1 = Uncoupler
+        acc_articles[i].prot = ACC_MM;  // 0 = ACC_DCC oder 1 = ACC_MM;
+        adrsss = 41;
         break;
-      case 4:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 5:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 6:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 7:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 8:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 9:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 10:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 11:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 12:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 13:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 14:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 15:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 16:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 33:
-        acc_articles[i].acc_type = TYPE_ENTKUPPLER;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 41:
-        acc_articles[i].acc_type = TYPE_ENTKUPPLER;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
-      case 44:
-        acc_articles[i].acc_type = TYPE_ENTKUPPLER;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
-        adrsss = base_address + i;
-        break;
+        
       default:
-        acc_articles[i].acc_type = TYPE_WEICHE;   // 0 = Weiche/Signal ; 1 = Entkuppler
-        acc_articles[i].prot = MM_ACC;  // 0 = DCC_ACC oder 1 = MM_ACC;
+        acc_articles[i].acc_type = TYPE_TURNOUT;   // 0 = Turnout/Signal ; 1 = Uncoupler
+        acc_articles[i].prot = ACC_MM;  // 0 = ACC_DCC oder 1 = ACC_MM;
         adrsss = base_address + i;
         break;
     }
@@ -123,6 +45,7 @@ void config_own_adresses_manual() {
     EEPROM.put(acc_articles[i].reg_locid, locid_high);
     EEPROM.put(acc_articles[i].reg_locid + 1, locid_low);
     EEPROM.put(acc_articles[i].reg_type, acc_articles[i].acc_type);
+    EEPROM.put(acc_articles[i].reg_prot, acc_articles[i].prot);
     #ifdef LED_FEEDBACK
       acc_articles[i].state_is = 0;
       EEPROM.put( acc_articles[i].reg_state, acc_articles[i].state_is);
@@ -130,8 +53,19 @@ void config_own_adresses_manual() {
       acc_articles[i].power_is = 0;
       acc_articles[i].power_set = acc_articles[i].power_is;
     #endif
+    #ifdef DEBUG_SETUP_ACC
+      Serial.print("Init ACC #");
+      Serial.print(i);
+      Serial.print(" -> Adresse: ");
+      Serial.print(adrsss);
+      Serial.print(" -> Protocol: ");
+      Serial.print(acc_articles[i].prot);
+      Serial.print(" -> Local-ID: ");
+      Serial.println(acc_articles[i].locID);
+      //Serial.println("-----------------------------------");
+      delay(100);
+    #endif
+
   }
 
 }
-
-

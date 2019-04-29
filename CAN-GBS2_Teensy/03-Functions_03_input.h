@@ -1,5 +1,5 @@
 //#############################################################################
-// Setup Funktion zum Einrichten der ACCs
+// Setup function for ACCs
 //#############################################################################
 //-----------------------------------------------------------------------------
 // alt:      acc_articles[num].adrs_channel = num + start_adrs_channel;
@@ -53,6 +53,18 @@ void setup_acc(){
     Serial.println("");
   #endif
   int num = 0;
+
+  if ( ANZ_S88_ADDONS <= 8 ) {
+    board_num = ANZ_S88_ADDONS;
+  } else if ( ANZ_S88_ADDONS <= 16 ) {
+    board_num = ANZ_S88_ADDONS - 8;
+  } else if ( ANZ_S88_ADDONS <= 24 ) {
+    board_num = ANZ_S88_ADDONS - 16;
+  } else if ( ANZ_S88_ADDONS <= 32 ) {
+    board_num = ANZ_S88_ADDONS - 24;
+  }
+  
+  
   if (ANZ_ACC_ADDONS > 0) {
     for (int m = ANZ_S88_ADDONS; m < ANZ_ADDONS; m++) {
       #if (defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))  // teensy 3.0/3.1-3.2/LC/3.5/3.6
@@ -65,33 +77,114 @@ void setup_acc(){
         } else if ( m < ( i2c_bus0_len + i2c_bus1_len + i2c_bus2_len + i2c_bus3_len ) ) {   // i2c_bus3_len = 2 -> m = 7..8
           i2c_bus_con = 3;
         } 
-        AddOn[m].begin(m, i2c_bus_con);
+        #ifdef DEBUG_SETUP
+          Serial.println("");
+          Serial.print("I2C-BUS: ");
+          Serial.print(i2c_bus_con);
+          Serial.print(" | Board: ");
+          Serial.print(board_num);
+          Serial.print(" | Modul: ");
+          Serial.print(m);
+          Serial.print(" | AddOn #");
+          Serial.println(m+1);
+        #endif
+        
+        if ( i2c_bus_con == 0 ) {
+          AddOn[board_num].begin(board_num, i2c_bus_con);
+        #ifdef USE_WIRE1
+        } else if ( i2c_bus_con == 1 ) {
+          AddOn_W1[board_num].begin(board_num, i2c_bus_con);
+        #endif
+        #ifdef USE_WIRE2
+        } else if (i2c_bus_con == 2 ) {
+          AddOn_W2[board_num].begin(board_num, i2c_bus_con);
+        #endif
+        #ifdef USE_WIRE3
+        } else if ( i2c_bus_con == 3 ) {
+          AddOn_W3[board_num].begin(board_num, i2c_bus_con);
+        #endif
+        }
+
       #else
         AddOn[m].begin(m);
       #endif
       int pin = 0;
       for (int i = 0; i < ANZ_ACC_PER_ADDON; i++) {
-        acc_articles[num].Modul = m;
-        acc_articles[num].pin_grn = pin;
-        pin++;
-        acc_articles[num].pin_red = pin;
-        pin++;
-
-        AddOn[m].pinMode(acc_articles[num].pin_grn, INPUT);
-        AddOn[m].pullUp(acc_articles[num].pin_grn, HIGH);   // Activate Internal Pull-Up Resistor
-        AddOn[m].pinMode(acc_articles[num].pin_red, INPUT);
-        AddOn[m].pullUp(acc_articles[num].pin_red, HIGH);   // Activate Internal Pull-Up Resistor
-
         acc_articles[num].reg_locid = (200 + (6 * (num + 1)) - 5);
         acc_articles[num].locID     = (EEPROM.read( acc_articles[num].reg_locid ) << 8) | (EEPROM.read( acc_articles[num].reg_locid + 1 ));
         acc_articles[num].reg_type  = (200 + (6 * (num + 1))    );
         acc_articles[num].acc_type  = EEPROM.read( acc_articles[num].reg_type );
+        acc_articles[num].reg_prot  = (200 + (6 * (num + 1)) - 2);
+        acc_articles[num].prot      = EEPROM.read( acc_articles[num].reg_prot );
+
+        acc_articles[num].i2c_bus = i2c_bus_con;
+        acc_articles[num].board_num = board_num;
+        acc_articles[num].Modul = m;
+        acc_articles[num].pin_grn = pin;
+        pin++;
+        if ( acc_articles[num].acc_type == TYPE_SINGLE_BUTTON ) { 
+          acc_articles[num].pin_red = acc_articles[num].pin_grn;
+        } else {
+          acc_articles[num].pin_red = pin;
+        }
+        pin++;
+
+        if ( acc_articles[num].i2c_bus == 0 ) {
+          AddOn[acc_articles[num].board_num].pinMode(acc_articles[num].pin_grn, INPUT);
+          AddOn[acc_articles[num].board_num].pullUp(acc_articles[num].pin_grn, HIGH);   // Activate Internal Pull-Up Resistor
+          AddOn[acc_articles[num].board_num].pinMode(acc_articles[num].pin_red, INPUT);
+          AddOn[acc_articles[num].board_num].pullUp(acc_articles[num].pin_red, HIGH);   // Activate Internal Pull-Up Resistor
+        #ifdef USE_WIRE1
+        } else if ( acc_articles[num].i2c_bus == 1 ) {
+          AddOn_W1[acc_articles[num].board_num].pinMode(acc_articles[num].pin_grn, INPUT);
+          AddOn_W1[acc_articles[num].board_num].pullUp(acc_articles[num].pin_grn, HIGH);   // Activate Internal Pull-Up Resistor
+          AddOn_W1[acc_articles[num].board_num].pinMode(acc_articles[num].pin_red, INPUT);
+          AddOn_W1[acc_articles[num].board_num].pullUp(acc_articles[num].pin_red, HIGH);   // Activate Internal Pull-Up Resistor
+        #endif
+        #ifdef USE_WIRE2
+        } else if ( acc_articles[num].i2c_bus == 2 ) {
+          AddOn_W2[acc_articles[num].board_num].pinMode(acc_articles[num].pin_grn, INPUT);
+          AddOn_W2[acc_articles[num].board_num].pullUp(acc_articles[num].pin_grn, HIGH);   // Activate Internal Pull-Up Resistor
+          AddOn_W2[acc_articles[num].board_num].pinMode(acc_articles[num].pin_red, INPUT);
+          AddOn_W2[acc_articles[num].board_num].pullUp(acc_articles[num].pin_red, HIGH);   // Activate Internal Pull-Up Resistor
+        #endif
+        #ifdef USE_WIRE3
+        } else if ( acc_articles[num].i2c_bus == 3 ) {
+          AddOn_W3[acc_articles[num].board_num].pinMode(acc_articles[num].pin_grn, INPUT);
+          AddOn_W3[acc_articles[num].board_num].pullUp(acc_articles[num].pin_grn, HIGH);   // Activate Internal Pull-Up Resistor
+          AddOn_W3[acc_articles[num].board_num].pinMode(acc_articles[num].pin_red, INPUT);
+          AddOn_W3[acc_articles[num].board_num].pullUp(acc_articles[num].pin_red, HIGH);   // Activate Internal Pull-Up Resistor
+        #endif
+        } 
 
         #ifdef LED_FEEDBACK
-          acc_articles[num].pin_led_grn = acc_articles[num].pin_grn + 8;
-          acc_articles[num].pin_led_red = acc_articles[num].pin_red + 8;
-          AddOn[m].pinMode(acc_articles[num].pin_led_grn, OUTPUT);
-          AddOn[m].pinMode(acc_articles[num].pin_led_red, OUTPUT);
+          
+          if ( acc_articles[num].acc_type == TYPE_SINGLE_BUTTON ) { 
+            acc_articles[num].pin_led_grn = acc_articles[num].pin_red + 9;
+            acc_articles[num].pin_led_red = acc_articles[num].pin_grn + 8;
+          } else {
+            acc_articles[num].pin_led_grn = acc_articles[num].pin_grn + 8;
+            acc_articles[num].pin_led_red = acc_articles[num].pin_red + 8;
+          }
+          if ( acc_articles[num].i2c_bus == 0 ) {
+            AddOn[acc_articles[num].board_num].pinMode(acc_articles[num].pin_led_grn, OUTPUT);
+            AddOn[acc_articles[num].board_num].pinMode(acc_articles[num].pin_led_red, OUTPUT);
+          #ifdef USE_WIRE1
+          } else if ( acc_articles[num].i2c_bus == 1 ) {
+            AddOn_W1[acc_articles[num].board_num].pinMode(acc_articles[num].pin_led_grn, OUTPUT);
+            AddOn_W1[acc_articles[num].board_num].pinMode(acc_articles[num].pin_led_red, OUTPUT);
+          #endif
+          #ifdef USE_WIRE2
+          } else if ( acc_articles[num].i2c_bus == 2 ) {
+            AddOn_W2[acc_articles[num].board_num].pinMode(acc_articles[num].pin_led_grn, OUTPUT);
+            AddOn_W2[acc_articles[num].board_num].pinMode(acc_articles[num].pin_led_red, OUTPUT);
+          #endif
+          #ifdef USE_WIRE3
+          } else if ( acc_articles[num].i2c_bus == 3 ) {
+            AddOn_W3[acc_articles[num].board_num].pinMode(acc_articles[num].pin_led_grn, OUTPUT);
+            AddOn_W3[acc_articles[num].board_num].pinMode(acc_articles[num].pin_led_red, OUTPUT);
+          #endif
+          }
 
           acc_articles[num].reg_state = (200 + (6 * (num + 1)) - 1);
           acc_articles[num].state_is = EEPROM.read( acc_articles[num].reg_state );
@@ -105,13 +198,34 @@ void setup_acc(){
           Serial.print(" -> Modul: ");
           Serial.print(acc_articles[num].Modul);
           Serial.print(" -> Adresse: ");
-          Serial.print(mcan.getadrs(prot, acc_articles[num].locID));
+          Serial.print(mcan.getadrs(acc_articles[num].prot, acc_articles[num].locID));
+          Serial.print(" -> Protocol: ");
+          Serial.print(acc_articles[num].prot);
           Serial.print(" -> Local-ID: ");
           Serial.println(acc_articles[num].locID);
-          //Serial.println("-----------------------------------");
+          Serial.print(" reg_state: ");
+          Serial.print(acc_articles[num].reg_state);
+          Serial.print(" | State stored: ");
+          Serial.print(acc_articles[num].state_is);
+          Serial.println(" ( 0 = OFF/RED | 1 = ON/GREEN )");
+          Serial.print(" PIN GREEN:  ");
+          Serial.print(acc_articles[num].pin_grn);
+          Serial.print(" | PIN RED:  ");
+          Serial.println(acc_articles[num].pin_red);
+          Serial.print(" LED GREEN:  ");
+          Serial.print(acc_articles[num].pin_led_grn);
+          Serial.print(" | LED RED:  ");
+          Serial.println(acc_articles[num].pin_led_red);
+          Serial.println("-----------------------------------");
+          delay(5);
         #endif
         num++;
       }
+      board_num++;
+      if ( board_num == 8 ) {
+        board_num = 0;
+      }
+
     }
   }
   #ifdef DEBUG_SETUP
@@ -123,20 +237,107 @@ void setup_acc(){
 }
 
 //#############################################################################
-// Test aller LEDs
+// Test all LEDs
 //#############################################################################
 #ifdef LED_FEEDBACK
 void test_acc_leds() {
   for (int i = 0; i < NUM_ACCs; i++) {
-    AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_red, 1);
-    AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_grn, 1);
+    #ifdef DEBUG_LED_TEST
+      Serial.print("I2C-BUS: ");
+      Serial.print(acc_articles[i].i2c_bus);
+      Serial.print(" | Board: ");
+      Serial.print(acc_articles[i].board_num);
+      Serial.print(" | Modul: ");
+      Serial.print(acc_articles[i].Modul);
+      Serial.print(" | RED LED: ");
+      Serial.print(acc_articles[i].pin_led_red);
+      Serial.print(" ON - Address: ");
+      Serial.println(mcan.getadrs(acc_articles[i].locID));
+    #endif
+    
+    if ( acc_articles[i].i2c_bus == 0 ) {
+      AddOn[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, ON);
+    #ifdef USE_WIRE1
+    } else if ( acc_articles[i].i2c_bus == 1 ) {
+      AddOn_W1[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, ON);
+    #endif
+    #ifdef USE_WIRE2
+    } else if ( acc_articles[i].i2c_bus == 2 ) {
+      AddOn_W2[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, ON);
+    #endif
+    #ifdef USE_WIRE3
+    } else if ( acc_articles[i].i2c_bus == 3 ) {
+      AddOn_W3[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, ON);
+    #endif
+    }
+    
+    #ifdef DEBUG_LED_TEST
+      Serial.println("");
+      delay(25);
+    #endif
+    #ifdef DEBUG_LED_TEST
+      Serial.print("I2C-BUS: ");
+      Serial.print(acc_articles[i].i2c_bus);
+      Serial.print(" | Board: ");
+      Serial.print(acc_articles[i].board_num);
+      Serial.print(" | Modul: ");
+      Serial.print(acc_articles[i].Modul);
+      Serial.print(" GREEN LED: ");
+      Serial.print(acc_articles[i].pin_led_grn);
+      Serial.print(" ON - Address: ");
+      Serial.println(mcan.getadrs(acc_articles[i].locID));
+    #endif
+    
+    if ( acc_articles[i].i2c_bus == 0 ) {
+      AddOn[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, ON);
+    #ifdef USE_WIRE1
+    } else if ( acc_articles[i].i2c_bus == 1 ) {
+      AddOn_W1[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, ON);
+    #endif
+    #ifdef USE_WIRE2
+    } else if ( acc_articles[i].i2c_bus == 2 ) {
+      AddOn_W2[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, ON);
+    #endif
+    #ifdef USE_WIRE3
+    } else if ( acc_articles[i].i2c_bus == 3 ) {
+      AddOn_W3[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, ON);
+    #endif
+    }
+    #ifdef DEBUG_LED_TEST
+      Serial.println("");
+      delay(10);
+    #endif
+    
   }
-  #ifndef DEBUG_SERIAL
-    delay(10000);
+  
+  #ifndef DEBUG_LED_TEST
+    delay(5000);
+  #else
+    delay(5000);
+    delay(60000);
   #endif
+
   for (int i = 0; i < NUM_ACCs; i++) {
-    AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_red, 0);
-    AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_grn, 0);
+    if ( acc_articles[i].i2c_bus == 0 ) {
+      AddOn[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, OFF);
+      AddOn[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, OFF);
+    #ifdef USE_WIRE1
+    } else if ( acc_articles[i].i2c_bus == 1 ) {
+      AddOn_W1[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, OFF);
+      AddOn_W1[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, OFF);
+    #endif
+    #ifdef USE_WIRE2
+    } else if ( acc_articles[i].i2c_bus == 2 ) {
+      AddOn_W2[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, OFF);
+      AddOn_W2[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, OFF);
+    #endif
+    #ifdef USE_WIRE3
+    } else if ( acc_articles[i].i2c_bus == 3 ) {
+      AddOn_W3[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, OFF);
+      AddOn_W3[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, OFF);
+    #endif
+    }
+
   }
 
 }
@@ -144,7 +345,7 @@ void test_acc_leds() {
 
 
 //#############################################################################
-// Letzten Schaltzustand wiederherstellen.
+// restore last State
 //#############################################################################
 #ifdef LED_FEEDBACK
 void restore_last_state() {
@@ -155,34 +356,83 @@ void restore_last_state() {
   for (int i = 0; i < NUM_ACCs; i++) {
     #ifdef DEBUG_SETUP_ACC
       Serial.print(millis());
-      Serial.print(" - Adresse:");
+      Serial.print(" - Address: ");
       Serial.print(mcan.getadrs(acc_articles[i].prot, acc_articles[i].locID));
     #endif
-    if ( acc_articles[i].acc_type == 1 ) {
+    if ( acc_articles[i].acc_type == TYPE_UNCOUPLER ) {
       #ifdef DEBUG_SETUP_ACC
-        Serial.println(" (Entkuppler) - LEDs off.");
+        Serial.println(" (Uncoupler) - LEDs off.");
       #endif
-      AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_red, LOW);
-      AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+      if ( acc_articles[i].i2c_bus == 0 ) {
+        AddOn[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, LOW);
+        AddOn[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+      #ifdef USE_WIRE1
+      } else if ( acc_articles[i].i2c_bus == 1 ) {
+        AddOn_W1[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, LOW);
+        AddOn_W1[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+      #endif
+      #ifdef USE_WIRE2
+      } else if ( acc_articles[i].i2c_bus == 2 ) {
+        AddOn_W2[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, LOW);
+        AddOn_W2[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+      #endif
+      #ifdef USE_WIRE3
+      } else if ( acc_articles[i].i2c_bus == 3 ) {
+        AddOn_W3[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, LOW);
+        AddOn_W3[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+      #endif
+      }
     } else {
       #ifdef DEBUG_SETUP_ACC
-        Serial.print(" (Weiche/Signal) - LED: ");
+        Serial.print(" (Turnout/Signal) - LED: ");
       #endif
-      switch (acc_articles[i].state_is) {
-        case RED:   // rot
-          AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_grn, LOW);
-          AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_red, HIGH);
-          #ifdef DEBUG_SETUP_ACC
-            Serial.println("RED: ON / green: off");
-          #endif
-          break;
-        case GREEN:   // grün
-          AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_red, LOW);
-          AddOn[acc_articles[i].Modul].digitalWrite(acc_articles[i].pin_led_grn, HIGH);
-          #ifdef DEBUG_SETUP_ACC
-            Serial.println("red: off / GREEN: ON");
-          #endif
-          break;
+      if (acc_articles[i].state_is == RED) {
+        if ( acc_articles[i].i2c_bus == 0 ) {
+          AddOn[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+          AddOn[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, HIGH);
+        #ifdef USE_WIRE1
+        } else if ( acc_articles[i].i2c_bus == 1 ) {
+          AddOn_W1[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+          AddOn_W1[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, HIGH);
+        #endif
+        #ifdef USE_WIRE2
+        } else if ( acc_articles[i].i2c_bus == 2 ) {
+          AddOn_W2[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+          AddOn_W2[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, HIGH);
+        #endif
+        #ifdef USE_WIRE3
+        } else if ( acc_articles[i].i2c_bus == 3 ) {
+          AddOn_W3[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, LOW);
+          AddOn_W3[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, HIGH);
+        #endif
+        }
+        #ifdef DEBUG_SETUP_ACC
+          Serial.println("RED: ON / green: off");
+        #endif
+      }  
+      else if (acc_articles[i].state_is == GREEN) {
+        if ( acc_articles[i].i2c_bus == 0 ) {
+          AddOn[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, LOW);
+          AddOn[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, HIGH);
+        #ifdef USE_WIRE1
+        } else if ( acc_articles[i].i2c_bus == 1 ) {
+          AddOn_W1[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, LOW);
+          AddOn_W1[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, HIGH);
+        #endif
+        #ifdef USE_WIRE2
+        } else if ( acc_articles[i].i2c_bus == 2 ) {
+          AddOn_W2[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, LOW);
+          AddOn_W2[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, HIGH);
+        #endif
+        #ifdef USE_WIRE3
+        } else if ( acc_articles[i].i2c_bus == 3 ) {
+          AddOn_W3[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_red, LOW);
+          AddOn_W3[acc_articles[i].board_num].digitalWrite(acc_articles[i].pin_led_grn, HIGH);
+        #endif
+        }
+        #ifdef DEBUG_SETUP_ACC
+          Serial.println("red: off / GREEN: ON");
+        #endif
       }
     }
   }
@@ -197,12 +447,12 @@ void change_global_prot() {
   #ifdef DEBUG_CONFIG
     Serial.print(millis());
     Serial.print("Changing protocol from ");
-    if (prot_old == DCC_ACC ) {
+    if (prot_old == ACC_DCC ) {
       Serial.print("DCC to ");
     } else {
       Serial.print("MM to ");
     }
-    if (prot == DCC_ACC ) {
+    if (prot == ACC_DCC ) {
       Serial.println("DCC");
     } else {
       Serial.println("MM");
@@ -246,44 +496,97 @@ void switchLED(uint8_t acc_num, bool color, bool power) {
   #ifdef DEBUG_LED
     Serial.print(millis());
     Serial.print(" -- LED - Adresse: ");
-    Serial.print(mcan.getadrs(prot, acc_articles[acc_num].locID));
+    Serial.print(mcan.getadrs(acc_articles[acc_num].prot, acc_articles[acc_num].locID));
     Serial.print(" ");
   #endif
-  switch (acc_articles[acc_num].acc_type) {
-    case TYPE_WEICHE:
-      switch (color) {
-        case RED:
-          #ifdef DEBUG_LED
-            Serial.print(" - Weiche/Signal (rot|rund) LED: RED: ON / green: off");
-          #endif
-          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
-          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
-          break;
-        case GREEN:
-          #ifdef DEBUG_LED
-            Serial.print(" - Weiche/Signal (grün|gerade)  LED: red: off / GREEN: ON");
-          #endif
-          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
-          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
-          break;
+  if ( ( acc_articles[acc_num].acc_type == TYPE_TURNOUT ) || ( acc_articles[acc_num].acc_type == TYPE_SINGLE_BUTTON ) ) {
+    if ( color == RED ) {
+      #ifdef DEBUG_LED
+        Serial.print(" - Turnout/Signal (red|round) LED: RED: ON / green: off");
+      #endif
+      if ( acc_articles[acc_num].i2c_bus == 0 ) {
+        AddOn[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
+        AddOn[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
+      #ifdef USE_WIRE1
+      } else if ( acc_articles[acc_num].i2c_bus == 1 ) {
+        AddOn_W1[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
+        AddOn_W1[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
+      #endif
+      #ifdef USE_WIRE2
+      } else if ( acc_articles[acc_num].i2c_bus == 2 ) {
+        AddOn_W2[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
+        AddOn_W2[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
+      #endif
+      #ifdef USE_WIRE3
+      } else if ( acc_articles[acc_num].i2c_bus == 3 ) {
+        AddOn_W3[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, LOW);
+        AddOn_W3[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, HIGH);
+      #endif
       }
-      break;
-    case TYPE_ENTKUPPLER:
-      switch (color) {
-        case RED:
-          #ifdef DEBUG_LED
-            Serial.print(" - Entkuppler: Red: on");
-          #endif
-          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_red, power);
-          break;
-        case GREEN:
-          #ifdef DEBUG_LED
-            Serial.print(" - Entkuppler: Green: on");
-          #endif
-          AddOn[acc_articles[acc_num].Modul].digitalWrite(acc_articles[acc_num].pin_led_grn, power);
-          break;
+    } else if ( color == GREEN ) {
+      #ifdef DEBUG_LED
+        Serial.print(" - Turnout/Signal (green|straight)  LED: red: off / GREEN: ON");
+      #endif
+      if ( acc_articles[acc_num].i2c_bus == 0 ) {
+        AddOn[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
+        AddOn[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
+      #ifdef USE_WIRE1
+      } else if ( acc_articles[acc_num].i2c_bus == 1 ) {
+        AddOn_W1[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
+        AddOn_W1[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
+      #endif
+      #ifdef USE_WIRE2
+      } else if ( acc_articles[acc_num].i2c_bus == 2 ) {
+        AddOn_W2[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
+        AddOn_W2[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
+      #endif
+      #ifdef USE_WIRE3
+      } else if ( acc_articles[acc_num].i2c_bus == 3 ) {
+        AddOn_W3[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, HIGH);
+        AddOn_W3[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, LOW);
+      #endif
       }
-      break;
+    }
+  } else if ( acc_articles[acc_num].acc_type == TYPE_UNCOUPLER) {
+    if ( color == RED ) {
+      #ifdef DEBUG_LED
+        Serial.print(" - Uncoupler: RED: ON");
+      #endif
+      if ( acc_articles[acc_num].i2c_bus == 0 ) {
+        AddOn[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, power);
+      #ifdef USE_WIRE1
+      } else if ( acc_articles[acc_num].i2c_bus == 1 ) {
+        AddOn_W1[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, power);
+      #endif
+      #ifdef USE_WIRE2
+      } else if ( acc_articles[acc_num].i2c_bus == 2 ) {
+        AddOn_W2[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, power);
+      #endif
+      #ifdef USE_WIRE3
+      } else if ( acc_articles[acc_num].i2c_bus == 3 ) {
+        AddOn_W3[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_red, power);
+      #endif
+      }
+    } else if ( color == GREEN ) {
+      #ifdef DEBUG_LED
+        Serial.print(" - Uncoupler: GREEN: ON");
+      #endif
+      if ( acc_articles[acc_num].i2c_bus == 0 ) {
+        AddOn[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, power);
+      #ifdef USE_WIRE1
+      } else if ( acc_articles[acc_num].i2c_bus == 1 ) {
+        AddOn_W1[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, power);
+      #endif
+      #ifdef USE_WIRE2
+      } else if ( acc_articles[acc_num].i2c_bus == 2 ) {
+        AddOn_W2[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, power);
+      #endif
+      #ifdef USE_WIRE3
+      } else if ( acc_articles[acc_num].i2c_bus == 3 ) {
+        AddOn_W3[acc_articles[acc_num].board_num].digitalWrite(acc_articles[acc_num].pin_led_grn, power);
+      #endif
+      }
+    }
   }
   #ifdef DEBUG_LED
     if (power == POWER_ON)  Serial.println(" - Power: ON");
@@ -292,6 +595,7 @@ void switchLED(uint8_t acc_num, bool color, bool power) {
   acc_articles[acc_num].power_is = power;
   acc_articles[acc_num].state_is = color;
   EEPROM.put(acc_articles[acc_num].reg_state, acc_articles[acc_num].state_is);
+
 
 }
 #endif
@@ -307,64 +611,85 @@ void button_pushed(uint8_t acc_num, bool color, bool state) {
    * state:     0 = not pushed
    *            1 = pushed
    */
-  switch (state) {
-    case BUTTON_PRESSED:
-      if (acc_articles[acc_num].pushed == BUTTON_NOT_PRESSED) {
-
+  if ( state == BUTTON_PRESSED ) {
+    if (acc_articles[acc_num].pushed == BUTTON_NOT_PRESSED) {
+      if ( acc_articles[acc_num].acc_type == TYPE_SINGLE_BUTTON ) {
         #ifdef DEBUG_INPUT
           Serial.print(millis());
-          if ( color == RED ) {
-            Serial.print(" - send switchcommand RED to ACC #");
-          }
-          if ( color == GREEN ) {
-            Serial.print(" - send switchcommand GREEN to ACC #");
-          }
-          Serial.println(mcan.getadrs(prot, acc_articles[acc_num].locID));
+          Serial.println(" - PUSH Button - toggle color");
         #endif
-        mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
-        acc_articles[acc_num].pushed = millis();
-
-      } else if ( (acc_articles[acc_num].acc_type == TYPE_ENTKUPPLER)
-                && (millis() - acc_articles[acc_num].pushed >= acc_interval) ) {
-
+        color = !acc_articles[acc_num].state_is;
         #ifdef DEBUG_INPUT
           Serial.print(millis());
-          if ( color == RED )  {
-            Serial.print(" - resend switchcommand RED to ACC #");
-          }
-          if ( color == GREEN ) {
-            Serial.print(" - resend switchcommand GREEN to ACC #");
-          }
-          Serial.println(mcan.getadrs(prot, acc_articles[acc_num].locID));
+          Serial.print(" - State IS: ");
+          Serial.print(acc_articles[acc_num].state_is);
+          Serial.print(" => State SET: ");
+          Serial.print(acc_articles[acc_num].state_set);
+          Serial.print(" => Target State: ");
+          Serial.println(color);          
         #endif
-        acc_articles[acc_num].pushed = millis();
-        mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
-
       }
+      #ifdef DEBUG_INPUT
+        Serial.print(millis());
+        if ( color == RED ) {
+          Serial.print(" - send switchcommand RED to ACC #");
+        }
+        if ( color == GREEN ) {
+          Serial.print(" - send switchcommand GREEN to ACC #");
+        }
+        Serial.println(mcan.getadrs(acc_articles[acc_num].prot, acc_articles[acc_num].locID));
+      #endif
+      mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
+      acc_articles[acc_num].pushed = millis();
+
+    } else if ( (acc_articles[acc_num].acc_type == TYPE_UNCOUPLER)
+              && (millis() - acc_articles[acc_num].pushed >= acc_interval) ) {
+
+      #ifdef DEBUG_INPUT
+        Serial.print(millis());
+        if ( color == RED )  {
+          Serial.print(" - resend switchcommand RED to ACC #");
+        }
+        if ( color == GREEN ) {
+          Serial.print(" - resend switchcommand GREEN to ACC #");
+        }
+        Serial.println(mcan.getadrs(acc_articles[acc_num].prot, acc_articles[acc_num].locID));
+      #endif
+      acc_articles[acc_num].pushed = millis();
+      mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
+
+    }
+    #ifdef LED_FEEDBACK
+      acc_articles[acc_num].state_set = color;
+      acc_articles[acc_num].power_set = state;
+    #endif
+    #ifdef DEBUG_INPUT
+      Serial.print(millis());
+      Serial.print(" - State IS: ");
+      Serial.print(acc_articles[acc_num].state_is);
+      Serial.print(" => State SET: ");
+      Serial.print(acc_articles[acc_num].state_set);
+      Serial.print(" => Target State: ");
+      Serial.println(color);          
+    #endif
+
+    
+  } else if ( state == BUTTON_NOT_PRESSED ) {
+    if (acc_articles[acc_num].pushed > BUTTON_NOT_PRESSED) {
+      #ifdef DEBUG_INPUT
+        Serial.print(millis());
+        Serial.print(" - send power-off command to ACC #");
+        Serial.println(mcan.getadrs(acc_articles[acc_num].prot, acc_articles[acc_num].locID));
+      #endif
+      acc_articles[acc_num].pushed = state;
+      mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
+
       #ifdef LED_FEEDBACK
         acc_articles[acc_num].state_set = color;
         acc_articles[acc_num].power_set = state;
       #endif
-      break;
 
-
-    case BUTTON_NOT_PRESSED:
-      if (acc_articles[acc_num].pushed > BUTTON_NOT_PRESSED) {
-        #ifdef DEBUG_INPUT
-          Serial.print(millis());
-          Serial.print(" - send power-off command to ACC #");
-          Serial.println(mcan.getadrs(prot, acc_articles[acc_num].locID));
-        #endif
-        acc_articles[acc_num].pushed = state;
-        mcan.sendAccessoryFrame(device, acc_articles[acc_num].locID, color, false, state);
-
-        #ifdef LED_FEEDBACK
-          acc_articles[acc_num].state_set = color;
-          acc_articles[acc_num].power_set = state;
-        #endif
-
-      }
-      break;
+    }
   }
 
 }
@@ -392,11 +717,11 @@ void config_poll_input() {
       Serial.print(EEPROM.read(REG_PROT));
       Serial.println(" ( 0 = DCC / 1 = MM )");
     #endif
-    mcan.sendConfigInfoDropdown(device, 1, 2, EEPROM.read(REG_PROT), "Protokoll_DCC_MM");
+    mcan.sendConfigInfoDropdown(device, 1, 2, EEPROM.read(REG_PROT), "Protocol_DCC_MM");
   } else
   if(config_index >= 2){
     //----------------------------------------------------------------------------------------------
-    //mit Entkuppler:
+    // with Uncoupler:
     //----------------------------------------------------------------------------------------------
     uint8_t ci_acc_num = ( config_index / 2 ) - 1;
     if ( (config_index % 2) > 0) {
@@ -422,7 +747,7 @@ void config_poll_input() {
 
     } else {
       //--------------------------------------------------------------------------------------------
-      // ADRESSE:
+      // ADDRESSE:
       //--------------------------------------------------------------------------------------------
       string1 = "Adrs ";
       string2 = "_1_2048";
@@ -441,7 +766,7 @@ void config_poll_input() {
           Serial.print(" - Send Config Slider   for ACC_NUM: ");
         }
         Serial.print(ci_acc_num);
-        Serial.print(" - Adresse: ");
+        Serial.print(" - Address: ");
         Serial.println(adrs);
       #endif
       mcan.sendConfigInfoSlider(device, config_index, 1, 2048, adrs, string4);
@@ -451,27 +776,23 @@ void config_poll_input() {
   }
   config_poll = false;
   //================================================================================================
-  // ENDE - CONFIG_POLL
+  // END - CONFIG_POLL
   //================================================================================================
 
 }
 
 void setup_input() {
   if (!EEPROM.read(REG_PROT)) {
-    prot = DCC_ACC;
+    prot = ACC_DCC;
   } else {
-    prot = MM_ACC;
+    prot = ACC_MM;
   }
   prot_old = prot;
 
-  // mit Entkuppler:
+  // with Uncoupler:
   CONFIG_NUM_INPUT = start_adrs_channel + ( 2 * NUM_ACCs ) - 1;
 
   setup_acc();
-  #ifdef LED_FEEDBACK
-    test_acc_leds();
-    restore_last_state();
-  #endif
 
   #ifdef DEBUG_SERIAL
     Serial.println("-----------------------------------");
@@ -483,19 +804,19 @@ void setup_input() {
 
 void input_loop() {
   //================================================================================================
-  // STELL SCHLEIFE
+  // SWITCH LOOP
   //================================================================================================
   for (int i = 0; i < NUM_ACCs; i++) {
     //==============================================================================================
     // LED_FEEDBACK
     //==============================================================================================
     #ifdef LED_FEEDBACK
-      if ( (acc_articles[i].acc_type == TYPE_WEICHE)
+      if ( ( (acc_articles[i].acc_type == TYPE_TURNOUT) || (acc_articles[i].acc_type == TYPE_SINGLE_BUTTON) )
           && (acc_articles[i].state_is != acc_articles[i].state_set) ) {
 
         switchLED(i, acc_articles[i].state_set, acc_articles[i].power_set);
 
-      } else if ( (acc_articles[i].acc_type == TYPE_ENTKUPPLER)
+      } else if ( (acc_articles[i].acc_type == TYPE_UNCOUPLER)
           && (acc_articles[i].power_is != acc_articles[i].power_set) ) {
 
         switchLED(i, acc_articles[i].state_set, acc_articles[i].power_set);
@@ -503,38 +824,97 @@ void input_loop() {
       }
     #endif
     //==============================================================================================
-    // ENDE - LED_FEEDBACK
+    // END - LED_FEEDBACK
     //==============================================================================================
     //==============================================================================================
-    // TASTER ABFRAGEN
+    // SCAN BUTTONS
     //==============================================================================================
-    if ( (locked == false) && (currentMillis - previousMillis_input >= input_interval) ) {
-      if (AddOn[acc_articles[i].Modul].digitalRead(acc_articles[i].pin_red) == LOW) {
+    if ( (locked == false) && (GBS_locked == false) && (currentMillis - previousMillis_input >= input_interval) ) {
 
-        button_pushed(i, RED, BUTTON_PRESSED);
 
-      } else if (AddOn[acc_articles[i].Modul].digitalRead(acc_articles[i].pin_grn) == LOW) {
 
-        button_pushed(i, GREEN, BUTTON_PRESSED);
+      if ( acc_articles[i].i2c_bus == 0 ) {
 
-      } else {
-        #ifdef LED_FEEDBACK
-        button_pushed(i, acc_articles[i].state_is, BUTTON_NOT_PRESSED);
+        if (AddOn[acc_articles[i].board_num].digitalRead(acc_articles[i].pin_red) == LOW) {
+          button_pushed(i, RED, BUTTON_PRESSED);
+  
+        } else if (AddOn[acc_articles[i].board_num].digitalRead(acc_articles[i].pin_grn) == LOW) {
+          button_pushed(i, GREEN, BUTTON_PRESSED);
+  
+        } else {
+          #ifdef LED_FEEDBACK
+          button_pushed(i, acc_articles[i].state_is, BUTTON_NOT_PRESSED);
+          #endif
+  
+        }
+        
+      #ifdef USE_WIRE1
+      
+      } else if ( acc_articles[i].i2c_bus == 1 ) {
+
+        if (AddOn_W1[acc_articles[i].board_num].digitalRead(acc_articles[i].pin_red) == LOW) {
+          button_pushed(i, RED, BUTTON_PRESSED);
+  
+        } else if (AddOn_W1[acc_articles[i].board_num].digitalRead(acc_articles[i].pin_grn) == LOW) {
+          button_pushed(i, GREEN, BUTTON_PRESSED);
+  
+        } else {
+          #ifdef LED_FEEDBACK
+          button_pushed(i, acc_articles[i].state_is, BUTTON_NOT_PRESSED);
+          #endif
+  
+        }
+
+      #endif
+      #ifdef USE_WIRE2
+      
+      } else if ( acc_articles[i].i2c_bus == 2 ) {
+
+        if (AddOn_W2[acc_articles[i].board_num].digitalRead(acc_articles[i].pin_red) == LOW) {
+          button_pushed(i, RED, BUTTON_PRESSED);
+  
+        } else if (AddOn_W2[acc_articles[i].board_num].digitalRead(acc_articles[i].pin_grn) == LOW) {
+          button_pushed(i, GREEN, BUTTON_PRESSED);
+  
+        } else {
+          #ifdef LED_FEEDBACK
+          button_pushed(i, acc_articles[i].state_is, BUTTON_NOT_PRESSED);
+          #endif
+  
+        }
+
+      #endif
+      #ifdef USE_WIRE3
+      
+      } else if ( acc_articles[i].i2c_bus == 3 ) {
+
+        if (AddOn_W3[acc_articles[i].board_num].digitalRead(acc_articles[i].pin_red) == LOW) {
+          button_pushed(i, RED, BUTTON_PRESSED);
+  
+        } else if (AddOn_W3[acc_articles[i].board_num].digitalRead(acc_articles[i].pin_grn) == LOW) {
+          button_pushed(i, GREEN, BUTTON_PRESSED);
+  
+        } else {
+          #ifdef LED_FEEDBACK
+          button_pushed(i, acc_articles[i].state_is, BUTTON_NOT_PRESSED);
+          #endif
+  
+        }
+
         #endif
-
+      
       }
 
     }
     //==============================================================================================
-    // ENDE - TASTER ABFRAGEN
+    // END - SCAN BUTTONS
     //==============================================================================================
   }
   //================================================================================================
-  // ENDE - STELL SCHLEIFE
+  // END - SWITCH LOOP
   //================================================================================================
   if (currentMillis - previousMillis_input >= input_interval ) {
     previousMillis_input = currentMillis;
   }
 
 }
-

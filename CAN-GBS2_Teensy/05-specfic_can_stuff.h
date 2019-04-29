@@ -53,9 +53,9 @@ void CONFIG_FRAME_INPUT() {
         //--------------------------------------------------------------------------------------------
         prot_old = prot;
         if (!can_frame_in.data[7]) {
-          prot = DCC_ACC;
+          prot = ACC_DCC;
         } else {
-          prot = MM_ACC;
+          prot = ACC_MM;
         }
         if (prot != prot_old) {
           EEPROM.put(REG_PROT, can_frame_in.data[7]);
@@ -72,7 +72,7 @@ void CONFIG_FRAME_INPUT() {
 
       } else if (can_frame_in.data[5] >= 2) {
         //--------------------------------------------------------------------------------------------
-        // mit Entkuppler
+        // mit Uncoupler
         //--------------------------------------------------------------------------------------------
 
         uint8_t acc_num = ( can_frame_in.data[5] / 2 ) - 1;
@@ -96,7 +96,7 @@ void CONFIG_FRAME_INPUT() {
           EEPROM.put(acc_articles[acc_num].reg_type, can_frame_in.data[7]);
           #ifdef DEBUG_CAN
             Serial.print(acc_articles[acc_num].acc_type);
-            Serial.println("    ==> 0 = Weiche/Signal ; 1 = Entkuppler");
+            Serial.println("    ==> 0 = Turnout/Signal ; 1 = Uncoupler");
           #endif
         } else {
           //------------------------------------------------------------------------------------------

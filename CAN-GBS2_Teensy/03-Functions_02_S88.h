@@ -21,7 +21,7 @@ void init_s88_registers() {
   
 }
 //#############################################################################
-// Setup Funktion zum Einrichten der ACCs
+// Setup function for S88
 //#############################################################################
 void setup_s88() {
   //--------------------------------------------------------------------------------------------------
@@ -49,13 +49,13 @@ void setup_s88() {
 
   if (!use_L88) {
     //----------------------------------------------------------------------------------------------
-    // CS2/CS3plus S88 Bus Konfiguration
+    // CS2/CS3plus S88 Bus configuration
     //----------------------------------------------------------------------------------------------
     #ifdef DEBUG_SETUP
       Serial.println("... will be setup with CS2 / CS3plus S88 Bus configuration.");
     #endif
     //----------------------------------------------------------------------------------------------
-    // Vorbereitung der Variablen
+    // setup variables
     //----------------------------------------------------------------------------------------------
     CONFIG_NUM_S88 = 4;
     
@@ -78,9 +78,10 @@ void setup_s88() {
     start_bus[3] = 0;
 
     //----------------------------------------------------------------------------------------------
-    // S88 Rückmelder konfigurieren
+    // S88 Feedback configuration
     //----------------------------------------------------------------------------------------------
-    for(int m = 0; m < ANZ_S88_ADDONS; m++){                                                  // ANZ_S88_ADDONS = 8 -> m = 0..7
+    for(int m = 0; m < ANZ_S88_ADDONS; m++){
+      // ANZ_S88_ADDONS = 8 -> m = 0..7
       #if (defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))  // teensy 3.0/3.1-3.2/LC/3.5/3.6
         if ( m < i2c_bus0_len ) {                                                           // i2c_bus0_len = 2 -> m = 0..1
           i2c_bus_con = 0;
@@ -90,9 +91,33 @@ void setup_s88() {
           i2c_bus_con = 2;
         } else if ( m < ( i2c_bus0_len + i2c_bus1_len + i2c_bus2_len + i2c_bus3_len ) ) {   // i2c_bus3_len = 2 -> m = 7..8
           i2c_bus_con = 3;
-        } 
-        AddOn[m].begin(m, i2c_bus_con);
+        }
+        #ifdef DEBUG_SETUP
+          Serial.print("teensy | starting AddOn ");
+          Serial.print(m+1);
+          Serial.print(" I2C bus: ");
+          Serial.println(i2c_bus_con);
+        #endif
+
+        if ( i2c_bus_con == 0 ) {
+          AddOn[board_num].begin(board_num, i2c_bus_con);
+        #ifdef USE_WIRE1          
+        } else if ( i2c_bus_con == 1 ) {
+          AddOn_W1[board_num].begin(board_num, i2c_bus_con);
+        #endif
+        #ifdef USE_WIRE2  
+        } else if (i2c_bus_con == 2 ) {
+          AddOn_W2[board_num].begin(board_num, i2c_bus_con);
+        #endif
+        #ifdef USE_WIRE3
+        } else if ( i2c_bus_con == 3 ) {
+          AddOn_W3[board_num].begin(board_num, i2c_bus_con);
+        #endif
+        }
       #else
+        #ifdef DEBUG_SETUP
+          Serial.println("running on arduino hardware.");
+        #endif
         AddOn[m].begin(m);
       #endif
       if(use_bus[0]) {
@@ -123,10 +148,31 @@ void setup_s88() {
               Serial.print(" ");
             #endif
             s88_contacts[num].rm = curr_bus[0];
-            AddOn[m].pinMode(i, OUTPUT);
+            s88_contacts[num].i2c_bus = i2c_bus_con;
+            s88_contacts[num].board_num = board_num;
+            
+            if ( i2c_bus_con == 0 ) {
+              AddOn[board_num].pinMode(i, OUTPUT);
+            #ifdef USE_WIRE1       
+            } else if ( i2c_bus_con == 1 ) {
+              AddOn_W1[board_num].pinMode(i, OUTPUT);
+            #endif
+            #ifdef USE_WIRE2
+            } else if ( i2c_bus_con == 2 ) {
+              AddOn_W2[board_num].pinMode(i, OUTPUT);
+            #endif
+            #ifdef USE_WIRE3
+            } else if ( i2c_bus_con == 3 ) {
+              AddOn_W3[board_num].pinMode(i, OUTPUT);
+            #endif
+            }
             num++;
             curr_bus[0]++;
           }
+        }
+        board_num++;
+        if ( board_num == 8 ) {
+          board_num = 0;
         }
       }
     }
@@ -136,17 +182,17 @@ void setup_s88() {
     #endif
 
     //----------------------------------------------------------------------------------------------
-    // ENDE - CS2/CS3plus S88 Bus Konfiguration
+    // ENDE - CS2/CS3plus S88 Bus configuration
     //----------------------------------------------------------------------------------------------
   } else {
     //----------------------------------------------------------------------------------------------
-    // Link L88 - S88 BUS Konfiguration
+    // Link L88 - S88 BUS configuration
     //----------------------------------------------------------------------------------------------
     #ifdef DEBUG_SETUP
       Serial.println("... will be setup with Link L88 S88 Bus configuration.");
     #endif
     //----------------------------------------------------------------------------------------------
-    // Vorbereitung der Variablen
+    // setup variables
     //----------------------------------------------------------------------------------------------
     CONFIG_NUM_S88 = 12;
     
@@ -200,7 +246,7 @@ void setup_s88() {
     }
     
     //----------------------------------------------------------------------------------------------
-    // S88 Rückmelder konfigurieren
+    // S88 Feedback configuration
     //----------------------------------------------------------------------------------------------
     for(int m = 0; m < ANZ_S88_ADDONS; m++) {
       #if (defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))  // teensy 3.0/3.1-3.2/LC/3.5/3.6
@@ -213,15 +259,50 @@ void setup_s88() {
         } else if ( m < ( i2c_bus0_len + i2c_bus1_len + i2c_bus2_len + i2c_bus3_len ) ) {   // i2c_bus3_len = 2 -> m = 7..8
           i2c_bus_con = 3;
         }
-        AddOn[m].begin(m, i2c_bus_con);
+        #ifdef DEBUG_SETUP
+          Serial.print("teensy | starting ");
+          Serial.print(" I2C-BUS: ");
+          Serial.print(i2c_bus_con);
+          Serial.print(" | Board: ");
+          Serial.print(board_num);
+          Serial.print(" | Modul: ");
+          Serial.print(m);
+          Serial.print(" | AddOn #");
+          Serial.println(m+1);
+        #endif
+        if ( i2c_bus_con == 0 ) {
+          AddOn[board_num].begin(board_num, i2c_bus_con);
+        #ifdef USE_WIRE1
+        } else if ( i2c_bus_con == 1 ) {
+          AddOn_W1[board_num].begin(board_num, i2c_bus_con);
+        #endif
+        #ifdef USE_WIRE2
+        } else if ( i2c_bus_con == 2 ) {
+          AddOn_W2[board_num].begin(board_num, i2c_bus_con);
+        #endif
+        #ifdef USE_WIRE3
+        } else if ( i2c_bus_con == 3 ) {
+          AddOn_W3[board_num].begin(board_num, i2c_bus_con);
+        #endif
+        }
       #else
+        #ifdef DEBUG_SETUP
+          Serial.println("running on arduino hardware.");
+        #endif
         AddOn[m].begin(m);
       #endif
+      board_num++;
+      if ( board_num == 8 ) {
+        board_num = 0;
+      }
     }
+    
     int m = 0;
+    board_num = 0;
+
     if(use_bus[0]) {
       //------------------------------------------------------------------------------------------
-      // S88 BUS 0 konfigurieren
+      // S88 BUS 0 configuration
       //------------------------------------------------------------------------------------------
       #ifdef DEBUG_SETUP_S88
         Serial.println("");
@@ -237,30 +318,57 @@ void setup_s88() {
         for(int i = 0; i < ANZ_S88_PER_ADDON; i++){
           if (curr_bus[0] <= last_bus[0]) {
             #ifdef DEBUG_SETUP_S88
-              if (i == 0) {
-                Serial.println(" ");
-                Serial.print("AddOn #");
-                Serial.print(m+1);
-                Serial.print(" : ");
-              }
+              Serial.println(" ");
+              Serial.print("I2C-BUS: ");
+              Serial.print(m/16);
+              Serial.print(" | Board: ");
+              Serial.print(board_num);
+              Serial.print(" | Modul: ");
+              Serial.print(m);
+              Serial.print(" | AddOn #");
+              Serial.print(m+1);
+              Serial.print(" : ");
               Serial.print(curr_bus[0]);
               Serial.print(" (");
               Serial.print(i);
-              Serial.print(") ");
+              Serial.println(") ");
             #endif
             s88_contacts[num].rm = curr_bus[0];
-            AddOn[m].pinMode(i, OUTPUT);
+            
+            s88_contacts[num].i2c_bus = m / 8;
+            s88_contacts[num].board_num = board_num;
+            
+            if ( s88_contacts[num].i2c_bus == 0 ) {
+              AddOn[board_num].pinMode(i, OUTPUT);
+            #ifdef USE_WIRE1
+            } else if ( s88_contacts[num].i2c_bus == 1 ) {
+              AddOn_W1[board_num].pinMode(i, OUTPUT);
+            #endif
+            #ifdef USE_WIRE2
+            } else if ( s88_contacts[num].i2c_bus == 2 ) {
+              AddOn_W2[board_num].pinMode(i, OUTPUT);
+            #endif
+            #ifdef USE_WIRE3
+            } else if ( s88_contacts[num].i2c_bus == 3 ) {
+              AddOn_W3[board_num].pinMode(i, OUTPUT);
+            #endif
+            }
             num++;
             curr_bus[0]++;
           }
         }
         m++;
+        board_num++;
+        if ( board_num == 8 ) {
+          board_num = 0;
+        }
+
       }
       delay(100);
     }
     if(use_bus[1]) {
       //------------------------------------------------------------------------------------------
-      // S88 BUS 1 konfigurieren
+      // S88 BUS 1 configuration
       //------------------------------------------------------------------------------------------
       #ifdef DEBUG_SETUP_S88
         Serial.println(" ");
@@ -279,30 +387,55 @@ void setup_s88() {
         for(int i = 0; i < ANZ_S88_PER_ADDON; i++){
           if (curr_bus[1] <= last_bus[1]) {
             #ifdef DEBUG_SETUP_S88
-              if (i == 0) {
-                Serial.println(" ");
-                Serial.print("AddOn #");
-                Serial.print(m+1);
-                Serial.print(" : ");
-              }
+              Serial.println(" ");
+              Serial.print("I2C-BUS: ");
+              Serial.print(m/8);
+              Serial.print(" | Board: ");
+              Serial.print(board_num);
+              Serial.print(" | Modul: ");
+              Serial.print(m);
+              Serial.print(" | AddOn #");
+              Serial.print(m+1);
+              Serial.print(" : ");
               Serial.print(curr_bus[1]);
               Serial.print(" (");
               Serial.print(i);
-              Serial.print(") ");
+              Serial.println(") ");
             #endif
-            s88_contacts[num].rm = curr_bus[1];
-            AddOn[m].pinMode(i, OUTPUT);
+            s88_contacts[num].rm = curr_bus[1];         // DEFAULT
+            s88_contacts[num].i2c_bus = m / 8;
+            s88_contacts[num].board_num = board_num;
+            
+            if ( s88_contacts[num].i2c_bus == 0 ) {
+              AddOn[board_num].pinMode(i, OUTPUT);
+            #ifdef USE_WIRE1
+            } else if ( s88_contacts[num].i2c_bus == 1 ) {
+              AddOn_W1[board_num].pinMode(i, OUTPUT);
+            #endif
+            #ifdef USE_WIRE2
+            } else if ( s88_contacts[num].i2c_bus == 2 ) {
+              AddOn_W2[board_num].pinMode(i, OUTPUT);
+            #endif
+            #ifdef USE_WIRE3
+            } else if ( s88_contacts[num].i2c_bus == 3 ) {
+              AddOn_W3[board_num].pinMode(i, OUTPUT);
+            #endif
+            }
             num++;
             curr_bus[1]++;
           }
         }
         m++;
+        board_num++;
+        if ( board_num == 8 ) {
+          board_num = 0;
+        }
       }
       delay(100);
     }
     if(use_bus[2]) {
       //------------------------------------------------------------------------------------------
-      // S88 BUS 2 konfigurieren
+      // S88 BUS 2 configuration
       //------------------------------------------------------------------------------------------
       #ifdef DEBUG_SETUP_S88
         Serial.println(" ");
@@ -321,30 +454,56 @@ void setup_s88() {
         for(int i = 0; i < ANZ_S88_PER_ADDON; i++){
           if (curr_bus[2] <= last_bus[2]) {
             #ifdef DEBUG_SETUP_S88
-              if (i == 0) {
-                Serial.println(" ");
-                Serial.print("AddOn #");
-                Serial.print(m+1);
-                Serial.print(" : ");
-              }
+              Serial.println(" ");
+              Serial.print("I2C-BUS: ");
+              Serial.print(m/8);
+              Serial.print(" | Board: ");
+              Serial.print(board_num);
+              Serial.print(" | Modul: ");
+              Serial.print(m);
+              Serial.print(" | AddOn #");
+              Serial.print(m+1);
+              Serial.print(" : ");
               Serial.print(curr_bus[2]);
               Serial.print(" (");
               Serial.print(i);
-              Serial.print(") ");
+              Serial.println(") ");
             #endif
             s88_contacts[num].rm = curr_bus[2];
-            AddOn[m].pinMode(i, OUTPUT);
+            
+            s88_contacts[num].i2c_bus = m / 8;
+            s88_contacts[num].board_num = board_num;
+            
+            if ( s88_contacts[num].i2c_bus == 0 ) {
+              AddOn[board_num].pinMode(i, OUTPUT);
+            #ifdef USE_WIRE1
+            } else if ( s88_contacts[num].i2c_bus == 1 ) {
+              AddOn_W1[board_num].pinMode(i, OUTPUT);
+            #endif
+            #ifdef USE_WIRE2
+            } else if ( s88_contacts[num].i2c_bus == 2 ) {
+              AddOn_W2[board_num].pinMode(i, OUTPUT);
+            #endif
+            #ifdef USE_WIRE3
+            } else if ( s88_contacts[num].i2c_bus == 3 ) {
+              AddOn_W3[board_num].pinMode(i, OUTPUT);
+            #endif
+            }
             num++;
             curr_bus[2]++;
           }
         }
         m++;
+        board_num++;
+        if ( board_num == 8 ) {
+          board_num = 0;
+        }
       }
       delay(100);
     }
     if(use_bus[3]) {
       //------------------------------------------------------------------------------------------
-      // S88 BUS 3 konfigurieren
+      // S88 BUS 3 configuration
       //------------------------------------------------------------------------------------------
       #ifdef DEBUG_SETUP_S88
         Serial.println(" ");
@@ -363,31 +522,58 @@ void setup_s88() {
         for(int i = 0; i < ANZ_S88_PER_ADDON; i++){
           if (curr_bus[3] <= last_bus[3]) {
             #ifdef DEBUG_SETUP_S88
-              if (i == 0) {
-                Serial.println(" ");
-                Serial.print("AddOn #");
-                Serial.print(m+1);
-                Serial.print(" :");
-              }
+              Serial.println(" ");
+              Serial.print("I2C-BUS: ");
+              Serial.print(m/8);
+              Serial.print(" | Board: ");
+              Serial.print(board_num);
+              Serial.print(" | Modul: ");
+              Serial.print(m);
+              Serial.print(" | AddOn #");
+              Serial.print(m+1);
+              Serial.print(" :");
               Serial.print(curr_bus[3]);
               Serial.print(" (");
               Serial.print(i);
-              Serial.print(") ");
+              Serial.println(") ");
             #endif
             s88_contacts[num].rm = curr_bus[3];
-            AddOn[m].pinMode(i, OUTPUT);
+            
+            s88_contacts[num].i2c_bus = m / 8;
+            s88_contacts[num].board_num = board_num;
+            
+            if ( s88_contacts[num].i2c_bus == 0 ) {
+              AddOn[board_num].pinMode(i, OUTPUT);
+            #ifdef USE_WIRE1
+            } else if ( s88_contacts[num].i2c_bus == 1 ) {
+              AddOn_W1[board_num].pinMode(i, OUTPUT);
+            #endif
+            #ifdef USE_WIRE2
+            } else if ( s88_contacts[num].i2c_bus == 2 ) {
+              AddOn_W2[board_num].pinMode(i, OUTPUT);
+            #endif
+            #ifdef USE_WIRE3
+            } else if ( s88_contacts[num].i2c_bus == 3 ) {
+              AddOn_W3[board_num].pinMode(i, OUTPUT);
+            #endif
+            }
             num++;
             curr_bus[3]++;
           }
         }
         m++;
+        board_num++;
+        if ( board_num == 8 ) {
+          board_num = 0;
+        }
       }
       delay(100);
     }      
     //----------------------------------------------------------------------------------------------
-    // Link L88 - S88 BUS Konfiguration
+    // Link L88 - S88 BUS configuration
     //----------------------------------------------------------------------------------------------
   }
+  
   #ifdef DEBUG_SERIAL
     Serial.println("");
     Serial.println("-----------------------------------");
@@ -407,28 +593,120 @@ void setup_s88() {
 // Test aller LEDs
 //#############################################################################
 void test_s88_leds(){
-  for (int m = 0; m < ANZ_S88_ADDONS; m++) {
-    for(int i = 0; i < ANZ_S88_PER_ADDON; i++){
-      AddOn[m].digitalWrite(i, HIGH);   // switch all LEDs on
-    }
-  }
-  #ifndef DEBUG_SERIAL
-    delay(10000);
+  int s88_i2c_bus;
+  board_num = 0;
+  #ifdef DEBUG_LED_TEST
+    Serial.println("");
+    Serial.println("-----------------------------------");
+    Serial.println(" - S88: Testing LEDS              -");
+    Serial.println("-----------------------------------");
   #endif
   for (int m = 0; m < ANZ_S88_ADDONS; m++) {
     for(int i = 0; i < ANZ_S88_PER_ADDON; i++){
-      AddOn[m].digitalWrite(i, LOW);   // switch all LEDs off
+      s88_i2c_bus = m / 8;
+      #ifdef DEBUG_LED_TEST
+        Serial.print("I2C-BUS: ");
+        Serial.print(s88_i2c_bus);
+        Serial.print(" | Modul: ");
+        Serial.print(m);
+        Serial.print(" | AddOn: ");
+        Serial.print(m+1);
+        Serial.print(" LED: ");
+        Serial.print(i+1);
+        Serial.println(" ON");
+      #endif
+      
+      if ( s88_i2c_bus == 0 ) {
+        AddOn[board_num].digitalWrite(i, HIGH);   // switch all LEDs on
+      #ifdef USE_WIRE1
+      } else if ( s88_i2c_bus == 1 ) {
+        AddOn_W1[board_num].digitalWrite(i, HIGH);   // switch all LEDs on
+      #endif
+      #ifdef USE_WIRE2
+      } else if ( s88_i2c_bus == 2 ) {
+        AddOn_W2[board_num].digitalWrite(i, HIGH);   // switch all LEDs on
+      #endif
+      #ifdef USE_WIRE3
+      } else if ( s88_i2c_bus == 3 ) {
+        AddOn_W3[board_num].digitalWrite(i, HIGH);   // switch all LEDs on
+      #endif
+      }
+      #ifdef DEBUG_LED_TEST
+        Serial.println("");
+        delay(25);
+      #endif
     }
+    board_num++;
+    if ( board_num == 8 ) {
+      board_num = 0;
+    }
+    
+  }
+  #ifndef DEBUG_LED_TEST
+    delay(5000);
+  #else
+    delay(5000);
+    delay(60000);
+  #endif
+  board_num = 0;
+  for (int m = 0; m < ANZ_S88_ADDONS; m++) {
+    for(int i = 0; i < ANZ_S88_PER_ADDON; i++){
+      s88_i2c_bus = m / 8;
+      #ifdef DEBUG_LED_TEST
+        Serial.print("I2C-BUS: ");
+        Serial.print(s88_i2c_bus);
+        Serial.print(" | Modul: ");
+        Serial.print(m);
+        Serial.print(" | AddOn: ");
+        Serial.print(m+1);
+        Serial.print(" LED: ");
+        Serial.print(i+1);
+        Serial.println(" OFF");
+      #endif
+
+      if ( s88_i2c_bus == 0 ) {
+        AddOn[board_num].digitalWrite(i, LOW);   // switch all LEDs on
+      #ifdef USE_WIRE1
+      } else if ( s88_i2c_bus == 1 ) {
+        AddOn_W1[board_num].digitalWrite(i, LOW);   // switch all LEDs on
+      #endif
+      #ifdef USE_WIRE2
+      } else if ( s88_i2c_bus == 2 ) {
+        AddOn_W2[board_num].digitalWrite(i, LOW);   // switch all LEDs on
+      #endif
+      #ifdef USE_WIRE3
+      } else if ( s88_i2c_bus == 3 ) {
+        AddOn_W3[board_num].digitalWrite(i, LOW);   // switch all LEDs on
+      #endif
+      }
+      #ifdef DEBUG_LED_TEST
+        Serial.println("");
+        delay(10);
+      #endif
+
+    }
+    board_num++;
+    if ( board_num == 8 ) {
+      board_num = 0;
+    }
+
   }
       
 }
 
 
 //#############################################################################
-// S88 Kontakte Abfragen
+// read all S88 feedback contacts
 //#############################################################################
 void read_all_s88_contact() {
   /*
+   * EN:
+   * initial reading of all s88 feedback contacts
+   * 200ms for 1 contacts
+   * 128 contacts needs about 32 seconds
+   * normally not needed, because CS2/3 needs longer to boot
+   * 
+   * DE:
    * Alle S88 Kontakte einmal initial abfragen.
    * Alle 200ms wird 1 Kontakt abgefragt. 
    * Dauert für 128 Kontakte ca 32 sek)
@@ -440,13 +718,13 @@ void read_all_s88_contact() {
     if(currentMillis_s88read - previousMillis_s88read >= interval_s88read) {
       previousMillis_s88read = currentMillis_s88read;
       mcan.checkS88StateFrame(device, modulID, s88_contacts[checked_S88].rm);
-      
-      Serial.print(millis());
-      Serial.print(" - requesting RM (");
-      Serial.print(checked_S88);
-      Serial.print("): ");
-      Serial.println(s88_contacts[checked_S88].rm);
-      
+      #ifdef DEBUG_SETUP_S88
+        Serial.print(millis());
+        Serial.print(" - requesting RM (");
+        Serial.print(checked_S88);
+        Serial.print("): ");
+        Serial.println(s88_contacts[checked_S88].rm);
+      #endif
       checked_S88++;
     }
   }
@@ -456,7 +734,7 @@ void read_all_s88_contact() {
 
 
 //#############################################################################
-// LEDs schalten für S88 Anzeige
+// Set LEDs for S88
 //#############################################################################
 void s88_loop() {
   if (!use_L88) {
@@ -465,9 +743,24 @@ void s88_loop() {
     //--------------------------------------------------------------------------------------------
     for(int i = 0; i < NUM_S88; i++){
       if(s88_contacts[i].state_is != s88_contacts[i].state_set){
-        addon_modul = ( s88_contacts[i].rm - 1 ) / 16;                      // ( 66 - 1) / 16 = 4
+        addon_modul = ( s88_contacts[i].rm - 1 ) / 16;                      // ( 66 - 1) / 16 = 4        
         addon_pin   = s88_contacts[i].rm - ( s88_modul * 16 ) - 1;          // 66 - ( 1 * 16 ) - 1 = 1
-        AddOn[addon_modul].digitalWrite(addon_pin, s88_contacts[i].state_set);
+
+        if ( s88_contacts[i].i2c_bus == 0 ) {
+          AddOn[s88_contacts[i].board_num].digitalWrite(addon_pin, s88_contacts[i].state_set);
+        #ifdef USE_WIRE1
+        } else if ( s88_contacts[i].i2c_bus == 1 ) {
+          AddOn_W1[s88_contacts[i].board_num].digitalWrite(addon_pin, s88_contacts[i].state_set);
+        #endif
+        #ifdef USE_WIRE2
+        } else if ( s88_contacts[i].i2c_bus == 2 ) {
+          AddOn_W2[s88_contacts[i].board_num].digitalWrite(addon_pin, s88_contacts[i].state_set);
+        #endif
+        #ifdef USE_WIRE3
+        } else if ( s88_contacts[i].i2c_bus == 3 ) {
+          AddOn_W3[s88_contacts[i].board_num].digitalWrite(addon_pin, s88_contacts[i].state_set);
+        #endif
+        }
         s88_contacts[i].state_is = s88_contacts[i].state_set;
         #ifdef DEBUG_S88
           Serial.print(millis());
@@ -485,7 +778,7 @@ void s88_loop() {
       }
     }
     //--------------------------------------------------------------------------------------------
-    // ENDE - CS2/CS3plus - S88 BUS
+    // END - CS2/CS3plus - S88 BUS
     //--------------------------------------------------------------------------------------------
   } else {
     //--------------------------------------------------------------------------------------------
@@ -526,12 +819,26 @@ void s88_loop() {
           if(s88_contacts[i].state_set == POWER_OFF) Serial.println("OFF");
           delay(100);
         #endif
-        AddOn[addon_modul].digitalWrite(addon_pin, s88_contacts[i].state_set);
+        if ( s88_contacts[i].i2c_bus == 0 ) {
+          AddOn[s88_contacts[i].board_num].digitalWrite(addon_pin, s88_contacts[i].state_set);
+        #ifdef USE_WIRE1
+        } else if ( s88_contacts[i].i2c_bus == 1 ) {
+          AddOn_W1[s88_contacts[i].board_num].digitalWrite(addon_pin, s88_contacts[i].state_set);
+        #endif
+        #ifdef USE_WIRE2
+        } else if ( s88_contacts[i].i2c_bus == 2 ) {
+          AddOn_W2[s88_contacts[i].board_num].digitalWrite(addon_pin, s88_contacts[i].state_set);
+        #endif
+        #ifdef USE_WIRE3
+        } else if ( s88_contacts[i].i2c_bus == 3 ) {
+          AddOn_W3[s88_contacts[i].board_num].digitalWrite(addon_pin, s88_contacts[i].state_set);
+        #endif
+        }
         s88_contacts[i].state_is = s88_contacts[i].state_set;
       }
     }
     //--------------------------------------------------------------------------------------------
-    // ENDE - Link L88 - S88 BUS
+    // END - Link L88 - S88 BUS
     //--------------------------------------------------------------------------------------------
   }
 
@@ -548,7 +855,7 @@ void config_poll_s88() {
   Serial.print(" / config_index = ");
   Serial.println(config_index);
   //================================================================================================
-  // Sende Config
+  // Send Config
   //================================================================================================
   if(config_index == 0)  mcan.sendDeviceInfo(device, CONFIG_NUM_S88);
 
@@ -562,7 +869,7 @@ void config_poll_s88() {
     if(config_index == 3)  mcan.sendConfigInfoSlider(  device,  3,  0, 31, len_bus[0],   "Bus Länge_0_31");
     if(config_index == 4)  mcan.sendConfigInfoSlider(  device,  4,  0, 31, start_bus[0], "Start Modul_0_31");
     //----------------------------------------------------------------------------------------------
-    // ENDE - CS2/CS3plus - S88 BUS
+    // END - CS2/CS3plus - S88 BUS
     //----------------------------------------------------------------------------------------------
   } else {
     //----------------------------------------------------------------------------------------------
@@ -582,7 +889,7 @@ void config_poll_s88() {
     if(config_index == 11) mcan.sendConfigInfoSlider(  device, 11,  0, 31, len_bus[3],   "Bus Länge_0_31");
     if(config_index == 12) mcan.sendConfigInfoSlider(  device, 12,  0, 31, start_bus[3], "Start Modul_0_31");
     //----------------------------------------------------------------------------------------------
-    // ENDE - Link L88 - S88 BUS
+    // END - Link L88 - S88 BUS
     //----------------------------------------------------------------------------------------------
   }
   config_poll = false;
@@ -592,8 +899,7 @@ void config_poll_s88() {
   Serial.println("----------------------------------------------------------------------------------------------");
   Serial.println(" ");
   //================================================================================================
-  // ENDE - CONFIG_POLL
+  // END - CONFIG_POLL
   //================================================================================================
 
 }
-
