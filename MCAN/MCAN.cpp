@@ -12,7 +12,12 @@
 #include <MCAN.h>
 #if !(defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
 	#include <mcp_can.h>
-	MCP_CAN Can0(10);
+	#if defined(__AVR_ATmega2560__)  // Arduino MEGA2560
+		MCP_CAN Can0(53);
+	#endif
+	#if defined(__AVR_ATmega328P__)  // Arduino UNO, NANO
+		MCP_CAN Can0(10);
+	#endif
 #endif
 #include <EEPROM.h>
 
@@ -274,7 +279,7 @@ void MCAN::sendConfigInfoSlider(CanDevice &device, uint8_t configChanel, uint16_
 
 void MCAN::sendPingFrame(CanDevice &device, bool response){
 	MCANMSG can_frame;
-	can_frame.cmd = PING;
+	can_frame.cmd = CAN_PING;
 	can_frame.hash = device.hash;
 	can_frame.resp_bit = response;
 	can_frame.dlc = 8;

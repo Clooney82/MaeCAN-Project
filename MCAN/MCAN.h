@@ -25,6 +25,7 @@
 #define MCAN_S88_GBS 0x0054
 #define MCAN_TOR_ANTRIEB 0x0055
 #define MCAN_GBS2 0x0056
+#define MCAN_ZZA 0x0057
 
 
 /*
@@ -45,7 +46,7 @@
  	#define SYS_STAT	0x0b	//System - Status (sendet geänderte Konfiguration oder übermittelt Messwerte)
 #define SWITCH_ACC 	0x0b	//Magnetartikel Schalten
 #define S88_EVENT	0x11	//Rückmelde-Event
-#define PING 		  0x18	//CAN-Teilnehmer anpingen
+#define CAN_PING 	0x18	//CAN-Teilnehmer anpingen
 #define CONFIG		0x1d	//Konfiguration
 
 typedef struct {
