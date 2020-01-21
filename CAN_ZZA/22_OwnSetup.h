@@ -38,11 +38,15 @@ typedef struct {
   #ifdef USE_DCC
     uint16_t address;
   #endif
-  char     RailNr[4];
-  uint8_t  msg_RED;
-  uint8_t  msg_GREEN;
-  bool     state_is  = 0;   // ...
-  bool     state_set = 0;   // ...
+  char    RailNr[4];
+  uint8_t msg_RED;
+  uint8_t msg_GREEN;
+  bool    state_is  = 0;   // ...
+  bool    state_set = 0;   // ...
+//  bool    power_is  = 0;   // current status
+  bool    power_set = 0;   // target status
+//  unsigned long Millis_set = 0 // time when activated
+
 } ZZA_T;
 
 const uint8_t adrss_per_acc = (MSG_COUNT / 2)+0.5;
@@ -58,6 +62,12 @@ void setup_zza()
 {
   // CALC NEEDED ADRESSES:
   //const uint8_t tot_adrss     = RAIL_COUNT * adrss_per_acc;
+  #ifdef DEBUG
+    Serial.print("Number of Rails: ");
+    Serial.println(RAIL_COUNT);
+    Serial.print("Adresses per Rail: ");
+    Serial.println(adrss_per_acc);
+    #endif
   uint8_t tmp_adrs = base_address;
   uint8_t acc_num = 0;
   for ( uint8_t rails = 0; rails < RAIL_COUNT; rails++)//i < ADRS_SPACE; i++ )
@@ -72,16 +82,44 @@ void setup_zza()
         acc_articles[acc_num].address = tmp_adrs;
       #endif
       strcpy(acc_articles[acc_num].RailNr, rail_definition[rails].RailNr);
-      acc_articles[acc_num].msg_RED = tmp_msg;
-      tmp_msg++;
-      acc_articles[acc_num].msg_GREEN = tmp_msg;
-      tmp_msg++;
-      acc_num++;
       #ifdef DEBUG
         Serial.print("Setup Adresse #: ");
         Serial.println(tmp_adrs);
-        //Serial.print(".");
       #endif
+      acc_articles[acc_num].msg_RED = tmp_msg;
+      #ifdef DEBUG
+        Serial.print("GLEIS: ");
+        Serial.print(rail_definition[rails].RailNr);
+        Serial.print(" | ");
+        Serial.print(tmp_msg);
+        Serial.print(" | ROT  | ");
+        Serial.print(Text_Messages[tmp_msg].zugnummer);
+        Serial.print(" | ");
+        Serial.print(Text_Messages[tmp_msg].ziel);
+        Serial.print(" | ");
+        Serial.print(Text_Messages[tmp_msg].zuglauf1);
+        Serial.print(" | ");
+        Serial.println(Text_Messages[tmp_msg].zuglauf2);
+      #endif
+      tmp_msg++;
+      acc_articles[acc_num].msg_GREEN = tmp_msg;
+      #ifdef DEBUG
+        Serial.print("GLEIS: ");
+        Serial.print(rail_definition[rails].RailNr);
+        Serial.print(" | ");
+        Serial.print(tmp_msg);
+        Serial.print(" | GRÜN | ");
+        Serial.print(Text_Messages[tmp_msg].zugnummer);
+        Serial.print(" | ");
+        Serial.print(Text_Messages[tmp_msg].ziel);
+        Serial.print(" | ");
+        Serial.print(Text_Messages[tmp_msg].zuglauf1);
+        Serial.print(" | ");
+        Serial.println(Text_Messages[tmp_msg].zuglauf2);
+        Serial.println();
+      #endif
+      tmp_msg++;
+      acc_num++;
       tmp_adrs = tmp_adrs +1;
     }
   }

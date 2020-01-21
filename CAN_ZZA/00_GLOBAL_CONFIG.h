@@ -7,8 +7,8 @@
 #define FONT_PS_11X17 u8g2_font_tpss_t_german
 
 #define DEBUG
-#define USE_MACAN       // CHOOSE BETWEEN CAN or DCC Interface
-//#define USE_DCC         // CHOOSE BETWEEN CAN or DCC Interface
+//#define USE_MACAN
+#define USE_DCC
 
 #define DYNAMIC_CLOCK
 
@@ -22,12 +22,13 @@
 #define UPD_DISP_STOP  3  // Stop the rolling display
 
 // If the following two lines are enabled the displayed text will change randomly
-#define RAND_CHANGE_MINTIME    5      // Minimal time between two display changes [s]
-#define RAND_CHANGE_MAXTIME    20      // Maximal time between two display changes [s]
+//#define RAND_CHANGE_MINTIME     5      // Minimal time between two display changes [s]
+//#define RAND_CHANGE_MAXTIME    20      // Maximal time between two display changes [s]
 
 #ifdef USE_DCC
   #if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__)) // TEENSY 3.2, 3.5, 3.6
     #define DCC_SIGNAL_PIN    6   // Connected to the opto coppler which reads the DCC signals
+                                  // USE HCPL-260L-000E instead of 6N137
   #else
     #define DCC_SIGNAL_PIN    2   // Connected to the opto coppler which reads the DCC signals
   #endif
@@ -74,8 +75,10 @@
  #define OLED_6_CS   A11
 #endif
 
-#define GREEN 1
-#define RED   0
+const bool    GREEN = 1;
+const bool    RED   = 0;
+const bool    ON  = 1;
+const bool    OFF = 0;
 
 //#ifdef DEBUG
   #define SERIAL_BAUDRATE         115200  // Attention the serial monitor of the Arduino IDE must use the same baud rate
@@ -84,7 +87,7 @@
 int base_address = 145;
 
 typedef struct
-{ 
+{
   U8G2    *oled;
   char     RailNr[4];
   uint8_t  RailSide;
@@ -119,18 +122,21 @@ typedef struct
  * #define OLED_4_CS   17
  * #define OLED_5_CS   18
  * #define OLED_6_CS   19
- * 
+ *
  * U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oledX(U8G2_R0, OLED_X_CS, OLED_DC, OLED_RESET);
  * U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oledN(U8G2_R0, OLED_N_CS, OLED_DC);
  ************************************************************************/
 #if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
-  U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled0(U8G2_R2, OLED_0_CS, OLED_DC, OLED_RESET);  // Gleis 1
-  U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled1(U8G2_R2, OLED_1_CS, OLED_DC);              // Gleis 2
-  U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled2(U8G2_R0, OLED_2_CS, OLED_DC);              // Gleis 3
-  //U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled3(U8G2_R0, OLED_3_CS, OLED_DC);              // Gleis 4
-  //U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled4(U8G2_R0, OLED_4_CS, OLED_DC);              // Gleis 5
-  //U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled5(U8G2_R0, OLED_5_CS, OLED_DC);              // Gleis 6
-  //U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled6(U8G2_R0, OLED_6_CS, OLED_DC);              // Gleis 7
+  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled0(U8G2_R2, OLED_CLK, OLED_MOSI, OLED_0_CS, OLED_DC, OLED_RESET); // Gleis 1a
+  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled1(U8G2_R2, OLED_CLK, OLED_MOSI, OLED_1_CS, OLED_DC);             // Gleis 1 - vorne
+  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled2(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_2_CS, OLED_DC);             // Gleis 1 - hinten
+//  U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled0(U8G2_R2, OLED_0_CS, OLED_DC, OLED_RESET);  // Gleis 1a
+//  U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled1(U8G2_R2, OLED_1_CS, OLED_DC);              // Gleis 1 - vorne
+//  U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled2(U8G2_R0, OLED_2_CS, OLED_DC);              // Gleis 1 - hinten
+  //U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled3(U8G2_R0, OLED_3_CS, OLED_DC);              // Gleis 2 - vorne
+  //U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled4(U8G2_R0, OLED_4_CS, OLED_DC);              // Gleis 2 - hinten
+  //U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled5(U8G2_R0, OLED_5_CS, OLED_DC);              // Gleis 3 - vorne
+  //U8G2_SSD1306_128X32_UNIVISION_F_4W_HW_SPI  oled6(U8G2_R0, OLED_6_CS, OLED_DC);              // Gleis 3 - hinten
 #endif
 
 /************************************************************************
@@ -152,42 +158,36 @@ typedef struct
  * #define OLED_4_CS    A9 // MEGA
  * #define OLED_5_CS   A10 // MEGA
  * #define OLED_6_CS   A11 // MEGA
- * 
+ *
  * U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oledX(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_X_CS, OLED_DC, OLED_RESET);
  * U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oledN(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_N_CS, OLED_DC);
 ************************************************************************/
 #if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega2560__) // Arduino UNO, NANO, MEGA
-  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled0(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_0_CS, OLED_DC, OLED_RESET); // Gleis 1
-  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled1(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_1_CS, OLED_DC);             // Gleis 2
-  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled2(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_2_CS, OLED_DC);             // Gleis 3
-  //U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled3(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_3_CS, OLED_DC);             // Gleis 4
-  //U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled4(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_4_CS, OLED_DC);             // Gleis 5
-  //U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled5(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_5_CS, OLED_DC);             // Gleis 6
-  //U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled6(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_6_CS, OLED_DC);             // Gleis 7
+  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled0(U8G2_R2, OLED_CLK, OLED_MOSI, OLED_0_CS, OLED_DC, OLED_RESET); // Gleis 1a
+  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled1(U8G2_R2, OLED_CLK, OLED_MOSI, OLED_1_CS, OLED_DC);             // Gleis 1 - vorne
+  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled2(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_2_CS, OLED_DC);             // Gleis 1 - hinten
+  //U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled3(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_3_CS, OLED_DC);             // Gleis 2 - vorne
+  //U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled4(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_4_CS, OLED_DC);             // Gleis 2 - hinten
+  //U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled5(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_5_CS, OLED_DC);             // Gleis 3 - vorne
+  //U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled6(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_6_CS, OLED_DC);             // Gleis 3 - hinten
 #endif
 
 const RAILS_T rail_definition[] = { // DEFINE RAILS, only needed for address calculation
-                               // MUST match with assignment on oleds
-                               "1",
-                               "2",
-                               "3",
-//                               "4", 
-//                               "5", 
-//                               "6", 
-//                               "7", 
+                               // MUST not match with assignment on oleds
+                                "1",
+                                "2",
+                                "3",
 };
 
 OLED_T oleds[] = { //OLED, RailNr, RailSide, UpdateDisplay
-                  {  &oled0, "1",  GleisSeite_Links, UPD_DISP_ONCE, 0, 0, 0, 0},
-                  {  &oled1,  "2", GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
-                  {  &oled2,  "3",  GleisSeite_Links, UPD_DISP_ONCE, 0, 0, 0, 0},
-//                  {  &oled3,  "4", GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
-//                  {  &oled4,  "5",  GleisSeite_Links, UPD_DISP_ONCE, 0, 0, 0, 0},
-//                  {  &oled5,  "6", GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
-//                  {  &oled6,  "7",  GleisSeite_Links, UPD_DISP_ONCE, 0, 0, 0, 0}
+                  {  &oled2,  "1",  GleisSeite_Links, UPD_DISP_ONCE, 0, 0, 0, 0},
+                  {  &oled3,  "2", GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
+                  {  &oled4,  "2",  GleisSeite_Links, UPD_DISP_ONCE, 0, 0, 0, 0},
+//                  {  &oled5,  "3", GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
+//                  {  &oled6,  "3",  GleisSeite_Links, UPD_DISP_ONCE, 0, 0, 0, 0}
 };
 
-#define RAIL_COUNT (sizeof(oleds)/sizeof(OLED_T))
+#define RAIL_COUNT (sizeof(rail_definition)/sizeof(RAILS_T))
 #define OLED_COUNT (sizeof(oleds)/sizeof(OLED_T))
 
 
@@ -235,7 +235,7 @@ OLED_T oleds[] = { //OLED, RailNr, RailSide, UpdateDisplay
               | [ ]                                     6[ ] |
         RANDR | [ ]A0                                   5[ ] |
    OLED_CLK   | [ ]A1           I C S P                 4[ ] |
-   OLED_MOSI  | [ ]A2         RST SCK MISO        INT5/ 3[ ] | 
+   OLED_MOSI  | [ ]A2         RST SCK MISO        INT5/ 3[ ] |
    OLED_RESET | [ ]A3         [ ] [ ] [ ]*        INT4/ 2[ ] | DCC Optocopler / or MCP2515 INT
    OLED_DC    | [ ]A4         [ ] [ ] [ ]           TX->1[ ] |
    OLED_0_CS  | [ ]A5         GND MOSI 5V           RX<>0[ ] |
@@ -258,7 +258,7 @@ OLED_T oleds[] = { //OLED, RailNr, RailSide, UpdateDisplay
               |          +--- 53 | CS                        |
               +----------------------------------------------+
 
-  Teensy 3.5: 
+  Teensy 3.5:
   USE HCPL-260L-000E instead of 6N137
                            +-----+
               +------------| USB |------------+
@@ -269,10 +269,10 @@ OLED_T oleds[] = { //OLED, RailNr, RailSide, UpdateDisplay
               | [ ]3        /   \    A8/22[ ] |
               | [ ]4       /  T  \   A7/21[ ] |
               | [ ]5       |  E  |   A6/20[ ] |
-   DCC Opto   | [ ]6       |  E  |   A5/19[ ] | 
-              | [ ]7       |  N  |   A4/18[ ] | 
-   OLED_RESET | [ ]8       |  S  |   A3/17[ ] | 
-   OLED_DC    | [ ]9       \  Y  /   A2/16[ ] | 
+   DCC Opto   | [ ]6       |  E  |   A5/19[ ] |
+              | [ ]7       |  N  |   A4/18[ ] |
+   OLED_RESET | [ ]8       |  S  |   A3/17[ ] |
+   OLED_DC    | [ ]9       \  Y  /   A2/16[ ] |
    OLED_0_CS  | [ ]10/CS    \___/    A1/15[ ] | OLED_2_CS + OLED_3_CS
    OLED_MOSI  | [ ]11/MOSI0          A0/14[ ] | OLED_1_CS + OLED_4_CS
               | [ ]12/MISO0        SCK0/13[ ] | OLED_CLK

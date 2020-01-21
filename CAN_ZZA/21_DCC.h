@@ -46,6 +46,8 @@ void notifyDccAccTurnoutOutput( uint16_t Addr, uint8_t Direction, uint8_t Output
       for (int i = 0; i < NUM_ACCs; i++) {
         if (Addr == acc_articles[i].address) {
           acc_articles[i].state_set = Direction;
+          acc_articles[i].power_set = ON;
+          //acc_articles[i].Millis_set = millis();
           break;
         }
   

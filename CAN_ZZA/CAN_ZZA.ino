@@ -20,7 +20,7 @@ unsigned long previousMillis_loop   = 0;
 unsigned long previousMillis_force  = 0;
 unsigned long previousMillis_clock  = 0;
 unsigned long previousMillis_late   = 0;
-unsigned long loop_interval  =     80;
+unsigned long loop_interval  =    100;
 unsigned long clock_interval =   6000;
 unsigned long late_interval  =  60000;
 unsigned long force_interval = 120000;
@@ -30,13 +30,24 @@ void zza_loop() {
   // STELL SCHLEIFE
   //================================================================================================
   for (int i = 0; i < NUM_ACCs; i++) {
-    if ( acc_articles[i].state_is != acc_articles[i].state_set ) 
+    if ( acc_articles[i].power_set == 1 )
+    {
+      if ( acc_articles[i].state_set == RED ) Change_Display_on_RailNr(acc_articles[i].RailNr, acc_articles[i].msg_RED);
+      else Change_Display_on_RailNr(acc_articles[i].RailNr, acc_articles[i].msg_GREEN);
+      acc_articles[i].state_is = acc_articles[i].state_set;
+      acc_articles[i].power_set = 0;
+    }
+    /* OLD
+    // if ( acc_articles[i].state_is != acc_articles[i].state_set ) 
+    } if ( acc_articles[i].power_set == 1 || ( acc_articles[i].state_is != acc_articles[i].state_set ) )
     {
 
       if ( acc_articles[i].state_set == RED ) Change_Display_on_RailNr(acc_articles[i].RailNr, acc_articles[i].msg_RED);
       else Change_Display_on_RailNr(acc_articles[i].RailNr, acc_articles[i].msg_GREEN);
       acc_articles[i].state_is = acc_articles[i].state_set;
+      acc_articles[i].power_is = acc_articles[i].power_set;
     }
+    */
   }
   //================================================================================================
   // ENDE - STELL SCHLEIFE
@@ -51,10 +62,12 @@ void zza_loop() {
       if ( be_late > 0 ) {
         oleds[who].Late = Text_Late[be_late].verspaetung;
         oleds[who].UpdateDisplay = UPD_DISP_ROLL;
+        oleds[who].oled->clearDisplay();
         for (uint8_t secOLED = 0; secOLED < OLED_COUNT; secOLED++) // Initialize the OLEDs
         {
           if ( ( secOLED != who ) &&( strcmp(oleds[secOLED].RailNr, oleds[who].RailNr) == 0 ) )
           {
+            oleds[secOLED].oled->clearDisplay();
             oleds[secOLED].Late = Text_Late[be_late].verspaetung;
             oleds[secOLED].UpdateDisplay = UPD_DISP_ROLL;
           }

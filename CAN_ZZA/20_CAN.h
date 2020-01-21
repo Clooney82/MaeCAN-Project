@@ -94,7 +94,7 @@ class BackgroundClass {
 private:
   MCANMSG mcan_frame;
 public:
-  void incomingFrame(MCANMSG &mcan_frame_in); 
+  void incomingFrame(MCANMSG &mcan_frame_in);
   #if (defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))  // teensy 3.0/3.1-3.2/LC/3.5/3.6
    bool frameHandler(CAN_message_t &frame, int mailbox, uint8_t controller); //overrides the parent version so we can actually do something
   #endif
@@ -129,7 +129,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
       Serial.print(" - Recieved ACC-Frame for ACC (local ID): ");
       Serial.println(locid);
     #endif
-    
+
     for (int i = 0; i < NUM_ACCs; i++) {
       if (locid == acc_articles[i].locID) {
         #ifdef DEBUG_CAN
@@ -137,6 +137,8 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
           Serial.println("    => match found -> Set target state.");
         #endif
         acc_articles[i].state_set = mcan_frame_in.data[4];
+        //acc_articles[i].power_set = mcan_frame_in.data[5];
+        acc_articles[i].power_set = ON;
         break;
       }
 
@@ -228,15 +230,15 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
   // ENDE - Befehle nur für eine UID
   //==================================================================================================
   } else if ((mcan_frame_in.cmd == SYS_CMD) && (mcan_frame_in.resp_bit == 0)) {
-      if ( ( (uid_mat[0] == mcan_frame_in.data[0]) && 
-             (uid_mat[1] == mcan_frame_in.data[1]) && 
-             (uid_mat[2] == mcan_frame_in.data[2]) && 
-             (uid_mat[3] == mcan_frame_in.data[3]) 
-           ) || ( 
-            (0 == mcan_frame_in.data[0]) && 
-            (0 == mcan_frame_in.data[1]) && 
-            (0 == mcan_frame_in.data[2]) && 
-            (0 == mcan_frame_in.data[3]) 
+      if ( ( (uid_mat[0] == mcan_frame_in.data[0]) &&
+             (uid_mat[1] == mcan_frame_in.data[1]) &&
+             (uid_mat[2] == mcan_frame_in.data[2]) &&
+             (uid_mat[3] == mcan_frame_in.data[3])
+           ) || (
+            (0 == mcan_frame_in.data[0]) &&
+            (0 == mcan_frame_in.data[1]) &&
+            (0 == mcan_frame_in.data[2]) &&
+            (0 == mcan_frame_in.data[3])
           ) ){
       //----------------------------------------------------------------------------------------------
       // START - STOP / GO / HALT     -
@@ -268,7 +270,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
     // ENDE - STOP / GO / HALT
     //------------------------------------------------------------------------------------------------
   }
-  
+
 }
 #if (defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))  // teensy 3.0/3.1-3.2/LC/3.5/3.6
 bool BackgroundClass::frameHandler(CAN_message_t &frame, int mailbox, uint8_t controller)
