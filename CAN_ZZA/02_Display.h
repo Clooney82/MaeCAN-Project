@@ -30,6 +30,7 @@ typedef struct
 #define ZUGLAUF2     6
 #define WAGENSTAND   7
 #define ABSCHNITT    8
+#define ANALOG_CLOCK 9
 
 
 //#define DEFVAR(var) sizeof(var)
@@ -47,14 +48,15 @@ const  Disp_T Disp[] =
 /* 6 */  { 30,  20, 17,   78,   0,  {  1,    0,     0,        0,   1,      0 },      FONT_4x6},//  '2',  DEFVAR(zuglauf2  ) }, // zuglauf2
 /* 7 */  {  0, 100, 27,   28,   0,  {  0,    0,     1,        0,   1,      0 },      FONT_4x6},//  'W',  DEFVAR(wagenstand) }, // wagenstand
 /* 8 */  {  0, 100, 21,   28,   0,  {  1,    0,     0,        0,   0,      1 },      FONT_4x6},//  'A',  DEFVAR(abschnitt ) }, // haltepositionen ABCDEFG
+/* 9 */  { 16, 112, 16,   32,   0,  {  1,    0,     0,        0,   0,      1 },      FONT_4x6},//  'C',  DEFVAR(analog_clock) }, // analog clock
 };
 
+char    uhrzeit[6];
+uint8_t hh = 8;
+uint8_t mm = 0;
 
 #ifdef DYNAMIC_CLOCK
-
-char    uhrzeit[6];
-uint8_t hh, mm = 0;
-uint8_t clock_step = 15;
+uint8_t clock_step = 1;
 
 //----------------------
 void change_clock()
@@ -63,7 +65,7 @@ void change_clock()
   String tmp_string;
   
   mm = mm + clock_step;
-  if (mm == 60) 
+  if (mm >= 60) 
   {
     mm = 0;
     hh++;
@@ -84,6 +86,56 @@ void change_clock()
   //return uhrzeit;
 }
 #endif
+
+// draw analog clock
+//void Draw_analog_clock(uint8_t OLED_No, uint8_t Hour, uint8_t Minute) {
+void Draw_analog_clock(uint8_t OLED_No, char l_uhrzeit[6]) {
+  String tmpstrng;
+  tmpstrng = l_uhrzeit[0];
+  tmpstrng += l_uhrzeit[1];
+  tmpstrng += l_uhrzeit[2];
+  tmpstrng += l_uhrzeit[3];
+  tmpstrng += l_uhrzeit[4];
+  uint8_t Hour = tmpstrng.substring(0,2).toInt();;
+  uint8_t Minute = tmpstrng.substring(3,5).toInt();;
+  uint8_t clockX;
+  if ( oleds[OLED_No].RailSide == GleisSeite_Rechts ) {
+    clockX = Disp[ANALOG_CLOCK].xR;
+  } else {
+    clockX = Disp[ANALOG_CLOCK].xL;
+  }
+
+  uint8_t clockY = Disp[ANALOG_CLOCK].y;
+
+  // now send the stuff to the display
+  oleds[OLED_No].oled->drawCircle(clockX, clockY, 15);
+  //hour ticks
+  for ( int z = 0; z < 360; z = z + 30 ) {
+    //Begin at 0° and stop at 360°
+    float angle = z ;
+    angle = (angle / 57.29577951) ; //Convert degrees to radians
+    int x2 = (clockX + (sin(angle) * 15));
+    int y2 = (clockY - (cos(angle) * 15));
+    int x3 = (clockX + (sin(angle) * (15 - 4)));
+    int y3 = (clockY - (cos(angle) * (15 - 4)));
+    oled0.drawLine(x2, y2, x3, y3);
+  }
+
+  // display minute hand
+  float angle = Minute * 6 ;
+  angle = (angle / 57.29577951) ; //Convert degrees to radians
+  int x3 = (clockX + (sin(angle) * (15 - 3)));
+  int y3 = (clockY - (cos(angle) * (15 - 3)));
+  oled0.drawLine(clockX, clockY, x3, y3);
+
+  // display hour hand
+  angle = Hour * 30 + int((Minute / 12) * 6 )   ;
+  angle = (angle / 57.29577951) ; //Convert degrees to radians
+  x3 = (clockX + (sin(angle) * (20 - 11)));
+  y3 = (clockY - (cos(angle) * (20 - 11)));
+  oled0.drawLine(clockX, clockY, x3, y3);
+
+}
 
 
 //----------------------
@@ -159,11 +211,29 @@ void Draw_All_Elements(uint8_t OLED_No, uint8_t Msg_No)
   Draw_Element(OLED_No, GLEIS, oleds[OLED_No].RailNr);
 
   // UHRZEIT      2
-  #ifdef DYNAMIC_CLOCK
-    Draw_Element(OLED_No, UHRZEIT, uhrzeit);
-  #else
-    Draw_Element(OLED_No, UHRZEIT, Text_Messages[Msg_No].uhrzeit);
-  #endif
+  if ((Msg_No == 0)||(Msg_No == 1)) {    
+    #if ( defined (USE_WIFI_CLOCK) || defined(DYNAMIC_CLOCK) ) &&  defined(USE_ANALOG_CLOCK)
+      Draw_analog_clock(OLED_No, uhrzeit);
+    #else
+    #if ( defined (USE_WIFI_CLOCK) || defined(DYNAMIC_CLOCK) ) && !defined(USE_ANALOG_CLOCK)
+      Draw_Element(OLED_No, UHRZEIT, uhrzeit);
+    #else
+    #if ( defined (USE_WIFI_CLOCK) || !defined(DYNAMIC_CLOCK) ) &&  defined(USE_ANALOG_CLOCK)
+      Draw_analog_clock(OLED_No, Text_Messages[Msg_No].uhrzeit);
+    #else 
+      Draw_Element(OLED_No, UHRZEIT, Text_Messages[Msg_No].uhrzeit);
+    #endif
+    #endif
+    #endif
+  } else {
+    /*
+    #if defined(DYNAMIC_CLOCK)
+      Draw_Element(OLED_No, UHRZEIT, uhrzeit);
+    #else 
+    */
+      Draw_Element(OLED_No, UHRZEIT, Text_Messages[Msg_No].uhrzeit);
+    //#endif
+  }
   
   // ZUGNUMMER    3
   Draw_Element(OLED_No, ZUGNUMMER, Text_Messages[Msg_No].zugnummer);
@@ -185,6 +255,8 @@ void Draw_All_Elements(uint8_t OLED_No, uint8_t Msg_No)
     Draw_Element(OLED_No, ABSCHNITT, Text_Messages[Msg_No].abschnitt);
   }
 
+
+  
   if ( oleds[OLED_No].UpdateDisplay == UPD_DISP_ONCE ) oleds[OLED_No].UpdateDisplay = DONT_UPD_DISP;
 
 }
@@ -234,6 +306,25 @@ void load_Display_defaults(uint8_t OLED_No, uint8_t Msg_No = 0)
   Serial.print(oleds[OLED_No].RailNr);
   Serial.print(" Anzeige Nr.: ");
   Serial.println(oleds[OLED_No].Msg_No_Displayed);
+  // -G <GLEIS> -U <ABFAHRTSZEIT> -N <ZUGNUMMER> -Z <ZUGZIEL> -1 <ZUGLAUF1> -2 <ZUGLAUF2> -W <WAGENSTAND> -A <HALTEPOSITION> -L <LAUFTEXT>
+  Serial.print("-G: ");
+  Serial.print(oleds[OLED_No].RailNr);
+  Serial.print(" -U: ");
+  Serial.print(Text_Messages[Msg_No].uhrzeit);
+  Serial.print(" -N: ");
+  Serial.print(Text_Messages[Msg_No].zugnummer);
+  Serial.print(" -Z: ");
+  Serial.print(Text_Messages[Msg_No].ziel);
+  Serial.print(" -1: ");
+  Serial.print(Text_Messages[Msg_No].zuglauf1);
+  Serial.print(" -2: ");
+  Serial.print(Text_Messages[Msg_No].zuglauf2);
+  Serial.print(" -W: ");
+  Serial.print(Text_Messages[Msg_No].wagenstand);
+  Serial.print(" -A: ");
+  Serial.print(Text_Messages[Msg_No].abschnitt);
+  Serial.print(" -L: ");
+  Serial.println(Text_Messages[Msg_No].lauftext);
   delay(20);
   #endif
   
@@ -338,7 +429,7 @@ void Setup_OLEDs()
       Serial.println(OLED_No);
     #endif
     oleds[OLED_No].oled->begin();
-    oleds[OLED_No].oled->setContrast(200);  // Kontrast Anpassen
+    oleds[OLED_No].oled->setContrast(255);  // Kontrast Anpassen
     oleds[OLED_No].oled->setFontMode(1);    // Fonts in the new library draw also the background pixels => The invers background is visible on the left side
     oleds[OLED_No].oled->setBusClock(1000000);
     delay(100);

@@ -4,14 +4,20 @@
 #include "99_6x13B_t_german.h"
 #include "99_tpss_t_german.h"
 
-#include "10_Text_Messages.h"
 #include "00_GLOBAL_CONFIG.h"
+#include "10_Text_Messages.h"
 #include "02_DISPLAY.h"
 #ifdef USE_MACAN
   #include "20_CAN.h"
 #endif
 #ifdef USE_DCC
   #include "21_DCC.h"
+#endif
+#ifdef USE_WIFI
+  #include "23_wifi.h"
+#endif
+#ifdef USE_TELNET
+  #include "24_telnet.h"
 #endif
 
 uint8_t tst_msg = 0;
@@ -25,6 +31,7 @@ unsigned long clock_interval =   6000;
 unsigned long late_interval  =  60000;
 unsigned long force_interval = 120000;
 
+#ifndef USE_WIFI
 void zza_loop() {
   //================================================================================================
   // STELL SCHLEIFE
@@ -77,6 +84,7 @@ void zza_loop() {
   }
 
 }
+#endif
 
 void setup() {
 //  #ifdef DEBUG
@@ -91,6 +99,12 @@ void setup() {
   #endif
   #ifdef USE_DCC
     setup_dcc();
+  #endif
+  #ifdef USE_WIFI
+    setup_wifi();
+  #endif
+  #ifdef USE_TELNET
+    setup_telnet();
   #endif
   #ifdef DEBUG
     Serial.println("Setup done.");
@@ -142,7 +156,12 @@ void loop() {
   } else
   #endif
   {
+    #if defined USE_DCC || defined USE_MACAN
     zza_loop();
+    #endif
+    #ifdef USE_TELNET
+    telnet_loop();
+    #endif
   }
 
   #ifdef DYNAMIC_CLOCK

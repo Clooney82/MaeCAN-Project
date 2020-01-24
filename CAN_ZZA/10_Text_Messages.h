@@ -38,7 +38,21 @@ typedef struct
 {
 //         Uhrzeit  Zugnummer  Ziel                Zuglauf1                Zuglauf2                abschnitt  Wagenstand  lauftext  1         2         3         4         5         6         7         8         9        10
 //         "12345", "1234567", "1234567890123456", "12345678901234567890", "12345678901234567890", "1234567", "1234567",  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
-/* xx */ { "07:24", "ICE 153", "Mainz Hbf",        "Schlier \374ber",      " Karlsruhe nach",      "ABCDEFG", "-222F--",  "+++ Vorsicht: STUMMI-ICE f\344hrt durch +++             +++ Danke an Tobias, Klaus & Fredddy,... +++" },
+/*  0 */ { "00:00", "",        "",                 "",                     "",                     "",        "",         "" },
+/*  1 */ { "01:00", "",        " Zugdurchfahrt",   "",                     "",                     "",        "",         "+++ Vorsicht am Bahnsteig +++" },
+#if !defined USE_DCC || !defined USE_MACAN
+/*  2 */ { "02:00", "MPZ 01",  "Oberdorf",         "Unterberg",            "",                     "  CDE  ", "  22-  ",  "" },
+/*  3 */ { "02:15", "MPZ 02",  "Oberdorf",         "Unterberg",            "",                     "   DE  ", "   22  ",  "" },
+/*  4 */ { "02:30", "MPZ 03",  "Oberdorf",         "Unterberg",            "",                     "  CDE  ", "  22-  ",  "" },
+/*  5 */ { "02:45", "MPZ 04",  "Stuttgart",        "Plochingen - ",        "Esslingen",            "  CDE  ", "  22-  ",  "+++ Sonderzug +++" },
+/*  6 */ { "02:50", "MPZ 05",  "Ulm",              "Gleislinge a.d.S.",    "",                     "  CDE  ", "  22-  ",  "+++ Sonderzug +++" },
+/*  7 */ { "03:00", "RB 01",   "Oberdorf",         "Unterberg",            "",                     "   DE  ", "   22  ",  "" },
+/*  8 */ { "03:15", "VT95",    "Oberdorf",         "Unterberg",            "",                     "   DE  ", "   22  ",  "" },
+/*  9 */ { "03:30", "RB95.9",  "Oberdorf",         "Unterberg",            "",                     "   D-  ", "   2-  ",  "" },
+/* 10 */ { "04:00", "RE 1234", "Stuttgart",        "Plochingen - ",        "Esslingen",            " -CDEF ", " -2221 ",  "" },
+/* 11 */ { "04:15", "RE 2345", "Ulm",              "Gleislinge a.d.S.",    "",                     " -CDEF ", " -2221 ",  "" },
+#if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
+/* xx */ { "07:24", "ICE 153", "Mainz Hbf",        "Schlier \374ber",      " Karlsruhe nach",      "ABCDEFG", "-222F--",  "+++ Vorsicht: STUMMI-ICE f\344hrt durch +++            +++ Danke an Tobias, Klaus & Fredddy,... +++" },
 /* xx */ { "09:34", "RB 1521", "Aschaffenburg",    "Gro\337auheim - Kahl", "- Gro\337krotzenburg", "ABCDEFG", "",         "" },
 /* xx */ { "10:04", "RB 3237", "Plattling",        "Freising - Moosburg",  "- Landshut",           "ABCDEFG", "",         "" },
 /* xx */ { "12:53", "EC 172",  "Hamburg - Altona", "Berlin Hbf - ",        "Hamburg Hbf",          "ABCDEFG", "-222211",  "Versp\344tung ca 10 Min" },
@@ -46,15 +60,27 @@ typedef struct
 /* xx */ { "17:02", "IC 602",  "Puttgarden",       "Wuppertal - Dortmund", "Bremen - Hamburg",     "ABCDEFG", " 22111 ",  "" },
 /* xx */ { "18:30", "RE 7",    "Kiel / Flensburg", "Elmshorn -",           "Neum\374nster",        "ABCDEFG", "   2121",  "Zugteilung in Neum\374nster - Vorderer Zugteil f\344hrt bis Flensburg" },
 /* xx */ { "21:45", "ICE 651", "Leipzig Hbf",      "Fulda - Eisenach",     "",                     "",        "",         "Achtung: Heute auf Gleis 7" },
+#endif
 ///* xx */ { "", "", "", "", "", "ABCDEFG", "", "" },
 ///* xx */ { "", "", "", "", "", "ABCDEFG", "", "" },
 ///* xx */ { "", "", "", "", "", "ABCDEFG", "", "" },
 ///* xx */ { "", "", "", "", "", "ABCDEFG", "", "" },
+#endif
+#ifdef USE_WIFI
+/* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
+/* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
+/* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
+/* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
+/* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
+/* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
+/* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
+/* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
+/* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
+#endif
 };
  // End of the Text_Messages string
 
 #define MSG_COUNT (sizeof(Text_Messages)/sizeof(MESSAGE_T))
-
 
 typedef struct 
 {
