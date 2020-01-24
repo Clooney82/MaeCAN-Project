@@ -63,15 +63,15 @@ void change_clock()
 //----------------------
 {
   String tmp_string;
-  
+
   mm = mm + clock_step;
-  if (mm >= 60) 
+  if (mm >= 60)
   {
     mm = 0;
     hh++;
   }
   if (hh == 24) hh = 0;
-  
+
   if (hh < 10) tmp_string = "0";
   tmp_string = tmp_string + hh + ":";
   if ( mm < 10) tmp_string = tmp_string + "0";
@@ -118,7 +118,7 @@ void Draw_analog_clock(uint8_t OLED_No, char l_uhrzeit[6]) {
     int y2 = (clockY - (cos(angle) * 15));
     int x3 = (clockX + (sin(angle) * (15 - 4)));
     int y3 = (clockY - (cos(angle) * (15 - 4)));
-    oled0.drawLine(x2, y2, x3, y3);
+    oleds[OLED_No].oled->drawLine(x2, y2, x3, y3);
   }
 
   // display minute hand
@@ -126,14 +126,14 @@ void Draw_analog_clock(uint8_t OLED_No, char l_uhrzeit[6]) {
   angle = (angle / 57.29577951) ; //Convert degrees to radians
   int x3 = (clockX + (sin(angle) * (15 - 3)));
   int y3 = (clockY - (cos(angle) * (15 - 3)));
-  oled0.drawLine(clockX, clockY, x3, y3);
+  oleds[OLED_No].oled->drawLine(clockX, clockY, x3, y3);
 
   // display hour hand
   angle = Hour * 30 + int((Minute / 12) * 6 )   ;
   angle = (angle / 57.29577951) ; //Convert degrees to radians
   x3 = (clockX + (sin(angle) * (20 - 11)));
   y3 = (clockY - (cos(angle) * (20 - 11)));
-  oled0.drawLine(clockX, clockY, x3, y3);
+  oleds[OLED_No].oled->drawLine(clockX, clockY, x3, y3);
 
 }
 
@@ -154,7 +154,7 @@ void Draw_Element(uint8_t OLED_No, uint8_t Txt_Type, char *Txt)
 
   uint8_t y = Disp[Txt_Type].y;
 
-  if ( Disp[Txt_Type].Flags.ColorIndex == 0 ) {       // Invers => draw a box 
+  if ( Disp[Txt_Type].Flags.ColorIndex == 0 ) {       // Invers => draw a box
     oleds[OLED_No].oled->setColorIndex(1);
 
     if ( *Txt != '\0' && ( Disp[Txt_Type].RolTextLen == 0 || oleds[OLED_No].UpdateDisplay != UPD_DISP_STOP ) ) {  // Don't draw box if text is empty or RolTextLen enabled and UPD_DISP_STOP
@@ -172,7 +172,7 @@ void Draw_Element(uint8_t OLED_No, uint8_t Txt_Type, char *Txt)
 
   if ( Disp[Txt_Type].RolTextLen && *Txt && oleds[OLED_No].UpdateDisplay != UPD_DISP_STOP ) { // rolling text used ?
     uint8_t Len = strlen(Txt);
-    if ( oleds[OLED_No].offset > Len ) 
+    if ( oleds[OLED_No].offset > Len )
         oleds[OLED_No].offset = 0;
     int remaining = Len - oleds[OLED_No].offset;
     if ( remaining > Disp[Txt_Type].RolTextLen )
@@ -185,7 +185,7 @@ void Draw_Element(uint8_t OLED_No, uint8_t Txt_Type, char *Txt)
         Txt[End] = '\0';
       }
       oleds[OLED_No].oled->drawStr(x - oleds[OLED_No].subset, y, Txt + oleds[OLED_No].offset);
-      if (End < Len) 
+      if (End < Len)
           Txt[End] = Old;
     }
   }
@@ -211,7 +211,7 @@ void Draw_All_Elements(uint8_t OLED_No, uint8_t Msg_No)
   Draw_Element(OLED_No, GLEIS, oleds[OLED_No].RailNr);
 
   // UHRZEIT      2
-  if ((Msg_No == 0)||(Msg_No == 1)) {    
+  if ((Msg_No == 0)||(Msg_No == 1)) {
     #if ( defined (USE_WIFI_CLOCK) || defined(DYNAMIC_CLOCK) ) &&  defined(USE_ANALOG_CLOCK)
       Draw_analog_clock(OLED_No, uhrzeit);
     #else
@@ -220,7 +220,7 @@ void Draw_All_Elements(uint8_t OLED_No, uint8_t Msg_No)
     #else
     #if ( defined (USE_WIFI_CLOCK) || !defined(DYNAMIC_CLOCK) ) &&  defined(USE_ANALOG_CLOCK)
       Draw_analog_clock(OLED_No, Text_Messages[Msg_No].uhrzeit);
-    #else 
+    #else
       Draw_Element(OLED_No, UHRZEIT, Text_Messages[Msg_No].uhrzeit);
     #endif
     #endif
@@ -229,34 +229,34 @@ void Draw_All_Elements(uint8_t OLED_No, uint8_t Msg_No)
     /*
     #if defined(DYNAMIC_CLOCK)
       Draw_Element(OLED_No, UHRZEIT, uhrzeit);
-    #else 
+    #else
     */
       Draw_Element(OLED_No, UHRZEIT, Text_Messages[Msg_No].uhrzeit);
     //#endif
   }
-  
+
   // ZUGNUMMER    3
   Draw_Element(OLED_No, ZUGNUMMER, Text_Messages[Msg_No].zugnummer);
-  
+
   // ZIEL         4
   Draw_Element(OLED_No, ZIEL, Text_Messages[Msg_No].ziel);
-    
+
   // ZUGLAUF1     5
   Draw_Element(OLED_No, ZUGLAUF1, Text_Messages[Msg_No].zuglauf1);
-  
+
   // ZUGLAUF2     6
   Draw_Element(OLED_No, ZUGLAUF2, Text_Messages[Msg_No].zuglauf2);
-  
+
   // WAGENSTAND   7
   Draw_Element(OLED_No, WAGENSTAND, Text_Messages[Msg_No].wagenstand);
-  
+
   // ABSCHNITT    8
   if ( strlen(Text_Messages[Msg_No].wagenstand) > 0 ) {
     Draw_Element(OLED_No, ABSCHNITT, Text_Messages[Msg_No].abschnitt);
   }
 
 
-  
+
   if ( oleds[OLED_No].UpdateDisplay == UPD_DISP_ONCE ) oleds[OLED_No].UpdateDisplay = DONT_UPD_DISP;
 
 }
@@ -265,7 +265,7 @@ void Draw_All_Elements(uint8_t OLED_No, uint8_t Msg_No)
 //--------------------------
 void Write_to_OLED(uint8_t OLED_No, uint8_t Msg_No = 0)
 //--------------------------
-{ 
+{
   /* Page buffer mode (Picture Loop) */
   /*
   oleds[OLED_No].oled->firstPage();
@@ -277,7 +277,7 @@ void Write_to_OLED(uint8_t OLED_No, uint8_t Msg_No = 0)
   oleds[OLED_No].oled->clearBuffer();
   Draw_All_Elements(OLED_No, Msg_No);
   oleds[OLED_No].oled->sendBuffer();
-  
+
   if ( strlen(Text_Messages[Msg_No].lauftext) > 0 ) {
     oleds[OLED_No].subset++;
     if (oleds[OLED_No].subset > 3)
@@ -327,7 +327,7 @@ void load_Display_defaults(uint8_t OLED_No, uint8_t Msg_No = 0)
   Serial.println(Text_Messages[Msg_No].lauftext);
   delay(20);
   #endif
-  
+
 
 }
 
@@ -352,7 +352,7 @@ void Change_Display_on_RailNr(char RailNo[4], uint8_t Msg_No = random(MSG_COUNT)
 
     }
   }
-  
+
 }
 
 
@@ -370,14 +370,14 @@ void Change_Display_ramdomly(uint8_t OLED_No = random(OLED_COUNT) , uint8_t Msg_
     Next_Rand_Change = 1;
     load_Display_defaults(OLED_No, Msg_No);
     for (uint8_t secOLED = 0; secOLED < OLED_COUNT; secOLED++) // Initialize the OLEDs
-    { 
+    {
       if ( ( secOLED != OLED_No ) &&( strcmp(oleds[secOLED].RailNr, oleds[OLED_No].RailNr) == 0 ) )
       {
         load_Display_defaults(secOLED, Msg_No);
       }
-    }    
+    }
   }
-  
+
 }
 #endif
 
@@ -420,7 +420,7 @@ void Setup_LAUFTEXT()
 //----------------
 void Setup_OLEDs()
 //----------------
-{ 
+{
   delay(500);
   for (uint8_t OLED_No = 0; OLED_No < OLED_COUNT; OLED_No++) // Initialize the OLEDs
   {
