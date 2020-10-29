@@ -1,35 +1,6 @@
 //#############################################################################
 // Manuelles configurieren der Adressen, wenn sich UID ändert.
 //#############################################################################
-/*
- * Example:
- * BASE_ADRESS = 200
- * MSG_COUNT = 11
- * NO ADRESSES = 11 % 2 = 6
- * 
- * --------   ---   -----------   - - --- RED GREEN
- * ADRESS 1 = 200 ( BASE_ADRESS     - MSG  0,  1 )
- * ADRESS 2 = 201 ( BASE_ADRESS + 1 - MSG  2,  3 )
- * ADRESS 3 = 202 ( BASE_ADRESS + 2 - MSG  4,  5 )
- * ADRESS 4 = 203 ( BASE_ADRESS + 3 - MSG  6,  7 )
- * ADRESS 5 = 204 ( BASE_ADRESS + 4 - MSG  8,  9 )
- * ADRESS 6 = 205 ( BASE_ADRESS + 5 - MSG 10, 11 )
- * ...
- * ------------------------------------------------
- * 
- * RECIEVED:
- * ADRESS 202, GREEN
- * -> 
- * 
- * SETUP:
- * uint16_t .locID = ADRESS
- * char     .RailNr[4]
- * bool     .msg_RED
- * bool     .msg_GREEN
- *
- * 
- * 
- */
 
 typedef struct {
   #ifdef USE_MACAN
@@ -43,9 +14,7 @@ typedef struct {
   uint8_t msg_GREEN;
   bool    state_is  = 0;   // ...
   bool    state_set = 0;   // ...
-//  bool    power_is  = 0;   // current status
   bool    power_set = 0;   // target status
-//  unsigned long Millis_set = 0 // time when activated
 
 } ZZA_T;
 
@@ -60,8 +29,6 @@ ZZA_T acc_articles[NUM_ACCs];
 #endif
 void setup_zza()
 {
-  // CALC NEEDED ADRESSES:
-  //const uint8_t tot_adrss     = RAIL_COUNT * adrss_per_acc;
   #ifdef DEBUG
     Serial.print("Number of Rails: ");
     Serial.println(RAIL_COUNT);
@@ -124,6 +91,3 @@ void setup_zza()
     }
   }
 }
-
-
- 

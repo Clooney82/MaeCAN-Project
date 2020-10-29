@@ -5,22 +5,33 @@
  ******************************************************************************
  * USING WIFI CLOCK:
  * ----------------------------------------------------------------------------
- * if "-T xx:xx" received at port 23: 
+ * if "-R" received, then it will reset OLED displays
+ * example:
+ * Windows:     C:\Program Files (x86)\Nmap> echo -R | ncat 10.0.0.57 23
+ * Linux/MacOS: echo -R | netcat 10.0.0.57 23
+ * ----------------------------------------------------------------------------
+ * if "-T xx:xx" received: 
  * xx:xx is converted to analog clock image and drawn at OLED display  
  * example:
- * C:\Program Files (x86)\Nmap>echo -T 13:48 | ncat 10.0.0.57 23
+ * Windows:     C:\Program Files (x86)\Nmap> echo -T 13:48 | ncat 10.0.0.57 23
+ * Linux/MacOS: echo -T 13:48 | netcat 10.0.0.57 23
  * ----------------------------------------------------------------------------
- * if "-S" received at port 23 then clock counts up by 1 minute
+ * if "-S" received, then clock counts up by 1 minute
  * example:
- * C:\Program Files (x86)\Nmap>echo -S | ncat 10.0.0.57 23
+ * Windows:     C:\Program Files (x86)\Nmap> echo -S | ncat 10.0.0.57 23
+ * Linux/MacOS: echo -S | netcat 10.0.0.57 23
  * ----------------------------------------------------------------------------
- * if "-D <GLEIS>" received at port 23 then display will show "Zugdurchfahrt"
+ * if "-D <GLEIS>" received, then display will show "Zugdurchfahrt"
+ * ANALOG_CLOCK will be displayed if enabled
  * example:
- * C:\Program Files (x86)\Nmap>echo -S | ncat 10.0.0.57 23
+ * Windows:     C:\Program Files (x86)\Nmap> echo -D 1 | ncat 10.0.0.57 23
+ * Linux/MacOS: echo -D 1 | nnetcat 10.0.0.57 23
  * ----------------------------------------------------------------------------
- * if "-C <GLEIS>" received at port 23 then display will be cleared
+ * if "-C <GLEIS>" received, then display will be cleared
+ * ANALOG_CLOCK will be displayed if enabled
  * example:
- * C:\Program Files (x86)\Nmap>echo -C 1 | ncat 10.0.0.57 23
+ * Windows:     C:\Program Files (x86)\Nmap> echo -C 1 | ncat 10.0.0.57 23
+ * Linux/MacOS: echo -C 1 | netcat 10.0.0.57 23
  ******************************************************************************
  * Setting of Traindata via telnet
  * ----------------------------------------------------------------------------
@@ -42,10 +53,13 @@
  * Ü=Ue, ü=ue, Ä=Ae, ä=ae and so on.  
  * ----------------------------------------------------------------------------
  * example:
- * C:\Program Files (x86)\Nmap>echo -L1 ICE 745 -L2 Muenchen -L3 ueber Nuerenberg -L4 21:10  | ncat 10.0.0.57 23
- * C:\Program Files (x86)\Nmap>echo -G 1a -U 07:24 -N ICE 153 -Z Mainz Hbf -1 Schlier ueber -2  Karlsruhe nach -W ABCDEFG -A -222F-- -L +++ Vorsicht: STUMMI-ICE faehrt durch +++            +++ Danke an Tobias, Klaus & Fredddy,... +++
+ * Windows:     C:\Program Files (x86)\Nmap> echo "-G 1a -U 07:24 -N ICE 153 -Z Mainz Hbf -1 Schlier ueber -2  Karlsruhe nach -W ABCDEFG -A -222F-- -L +++ Vorsicht: STUMMI-ICE faehrt durch +++" | ncat 10.0.0.57 23
+ * Linux/MacOS: echo "-G 1a -U 07:24 -N ICE 153 -Z Mainz Hbf -1 Schlier ueber -2  Karlsruhe nach -W ABCDEFG -A -222F-- -L +++ Vorsicht: STUMMI-ICE faehrt durch +++" | netcat 10.0.0.57 23
  ******************************************************************************/
-
+/******************************************************************************
+ * DO NOT CHANGE
+ * >>>>>>>>>>>>
+ ******************************************************************************/
 void setup_telnet() {
   // init Telent Server
   server.begin();
@@ -121,6 +135,13 @@ void processCommand(String cmdString) {
     RAIL.toCharArray(RailNo, 4);
     Change_Display_on_RailNr(RailNo, 1);
     
+    } else if (cmdString.charAt(1) == 'R') {
+      Setup_OLEDs();
+      for (uint8_t OLED_No = 0; OLED_No < OLED_COUNT; OLED_No++) // Initialize the OLEDs
+      {
+        load_Display_defaults(OLED_No,oleds[OLED_No].Msg_No_Displayed);
+      }
+
   } else {
     // since german umlauts are always nasty in different OS the sketch expect to receive their representive eg. "ae" instead of "ä"
     // here we convert it to octal code for proper display    
@@ -152,16 +173,32 @@ void processCommand(String cmdString) {
     String WAGONPOSITION  = cmdString.substring(pos_W  + 3, pos_A);
     String HALTEPOSITION  = cmdString.substring(pos_A  + 3, pos_L);
     String ROLLINGTEXT    = cmdString.substring(pos_L  + 3);
-  
-  // convert the string to array of char which is expected by the u8g2 library
-    char RailNo[4];
+
+    // Remove emty characters
     RAIL.trim();
+    DEPARTURE_TIME.trim();
+    TRAIN_NUMBER.trim();
+    DESTINATION.trim();
+    DESTINATION1.trim();
+    DESTINATION2.trim();
+    //WAGONPOSITION.trim();
+    //HALTEPOSITION.trim();
+    ROLLINGTEXT.trim();
+
+  
+    // convert the string to array of char which is expected by the u8g2 library
+    char RailNo[4];
     RAIL.toCharArray(RailNo, 4);
   
     for (int i = 0; i < RAIL_COUNT; i++) {
       if ( strcmp(rail_definition[i].RailNr, RailNo) == 0 )
       {
-        DEPARTURE_TIME.toCharArray(Text_Messages[i+2].uhrzeit, 6);
+        #ifdef DYNAMIC_DEPARTURE_TIME
+          change_departure_time();
+          new_dep_time.toCharArray(Text_Messages[i+2].uhrzeit, 6);
+        #else
+          DEPARTURE_TIME.toCharArray(Text_Messages[i+2].uhrzeit, 6);
+        #endif
         TRAIN_NUMBER.toCharArray(Text_Messages[i+2].zugnummer, 8);
         DESTINATION.toCharArray(Text_Messages[i+2].ziel, 17);
         DESTINATION1.toCharArray(Text_Messages[i+2].zuglauf1, 21);
@@ -195,7 +232,8 @@ void telnet_loop()
           Serial.println("recieved command:");
           Serial.println(commandStr);
         #endif
-        client.println("commandStr");
+        client.print("recieved command: ");
+        client.println(commandStr);
         processCommand(commandStr);                        // Process the received command
         delay(1); 
         client.stop();

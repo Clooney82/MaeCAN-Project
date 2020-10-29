@@ -1,3 +1,103 @@
+/******************************************************************************
+ * Zugzielanzeiger
+ * Version 0.4
+ ******************************************************************************
+ * Config files:
+ * ---------------
+ * 00_GLOBAL_CONFIG.h   <= GLOBAL CONFIG FILE
+ * 10_Text_Message.h    <= Message definition for OLEDs
+ * 20_CAN.h             <= CAN configuration file
+ * 23_wifi.h            <= WiFi configuration file
+ ******************************************************************************
+ * Version History:
+ * 0.4:
+ * * I2C OLED Display implemention
+ * 0.3:
+ * * telnet integartion:
+ ******************************************************************************
+ * INFORMATIONS:
+ ******************************************************************************
+ * the sketch receives the text to be displayed at Telnet port 23
+ ******************************************************************************
+ * USING WIFI CLOCK:
+ * ----------------------------------------------------------------------------
+ * if "-T xx:xx" received: 
+ * xx:xx is converted to analog clock image and drawn at OLED display  
+ * example:
+ * C:\Program Files (x86)\Nmap>echo -T 13:48 | ncat 10.0.0.57 23
+ * ----------------------------------------------------------------------------
+ * if "-S" received, then clock counts up by 1 minute
+ * example:
+ * C:\Program Files (x86)\Nmap>echo -S | ncat 10.0.0.57 23
+ * ----------------------------------------------------------------------------
+ * if "-D <GLEIS>" received, then display will show "Zugdurchfahrt"
+ * ANALOG_CLOCK will be displayed if enabled
+ * example:
+ * C:\Program Files (x86)\Nmap>echo -D 1 | ncat 10.0.0.57 23
+ * ----------------------------------------------------------------------------
+ * if "-C <GLEIS>" received, then display will be cleared
+ * ANALOG_CLOCK will be displayed if enabled
+ * example:
+ * C:\Program Files (x86)\Nmap>echo -C 1 | ncat 10.0.0.57 23
+ ******************************************************************************
+ * Setting of Traindata via telnet
+ * ----------------------------------------------------------------------------
+ * -G <GLEIS> -U <ABFAHRTSZEIT> -N <ZUGNUMMER> -Z <ZUGZIEL> -1 <ZUGLAUF1> -2 <ZUGLAUF2> -W <WAGENSTAND> -A <HALTEPOSITION> -L <LAUFTEXT>
+ * ----------------------------------------------------------------------------
+ * Parameter definition:
+ * ---------------------
+ * -G <GLEIS>         -> rail of departure        -> max   3 digits
+ * -U <ABFAHRTSZEIT>  -> time of departure        -> max   5 digits
+ * -N <ZUGNUMMER>     -> train number             -> max   7 digits
+ * -Z <ZUGZIEL>       -> train target             -> max  16 digits
+ * -1 <ZUGLAUF1>      -> next stop (1)            -> max  20 digits
+ * -2 <ZUGLAUF2>      -> next stop (2)            -> max  20 digits
+ * -W <WAGENSTAND>    ->                          -> max   7 digits
+ * -A <HALTEPOSITION> ->                          -> max   7 digits
+ * -L <LAUFTEXT>      -> rolling text             -> max 100 digits
+ * ----------------------------------------------------------------------------
+ * German "Umlaute" need to be send as their representative eg:
+ * Ü=Ue, ü=ue, Ä=Ae, ä=ae and so on.  
+ * ----------------------------------------------------------------------------
+ * example:
+ * C:\Program Files (x86)\Nmap>echo "-G 1a -U 07:24 -N ICE 153 -Z Mainz Hbf -1 Schlier ueber -2  Karlsruhe nach -W ABCDEFG -A -222F-- -L +++ Vorsicht: STUMMI-ICE faehrt durch +++" | ncat 10.0.0.57 23
+ ******************************************************************************
+ * 0.2:
+ * * bugfix: not all messages are always shown
+ * 0.1 initial Verion:
+ * * basic DCC and CAN functionality
+ * * Message need to be define in 10_Text_Message.h
+ * * ------------------------------------------------
+ * * Adress Calculation Example:
+ * * BASE_ADRESS = 200
+ * * MSG_COUNT = 11
+ * * RAILS = 2
+ * * NO ADRESSES = 11 % 2 = 6
+ * * ------------------------------------------------
+ * * --------   ---   -----------   - - --- RED GREEN
+ * * RAIL 1:
+ * * ADRESS 1 = 200 ( BASE_ADRESS     - MSG  0,  1 )
+ * * ADRESS 2 = 201 ( BASE_ADRESS + 1 - MSG  2,  3 )
+ * * ADRESS 3 = 202 ( BASE_ADRESS + 2 - MSG  4,  5 )
+ * * ADRESS 4 = 203 ( BASE_ADRESS + 3 - MSG  6,  7 )
+ * * ADRESS 5 = 204 ( BASE_ADRESS + 4 - MSG  8,  9 )
+ * * ADRESS 6 = 205 ( BASE_ADRESS + 5 - MSG 10, 11 )
+ * * RAIL 2:
+ * * ADRESS 1 = 206 ( BASE_ADRESS     - MSG  0,  1 )
+ * * ADRESS 2 = 207 ( BASE_ADRESS + 1 - MSG  2,  3 )
+ * * ADRESS 3 = 208 ( BASE_ADRESS + 2 - MSG  4,  5 )
+ * * ADRESS 4 = 209 ( BASE_ADRESS + 3 - MSG  6,  7 )
+ * * ADRESS 5 = 210 ( BASE_ADRESS + 4 - MSG  8,  9 )
+ * * ADRESS 6 = 211 ( BASE_ADRESS + 5 - MSG 10, 11 )
+ * * ...
+ * * ------------------------------------------------
+ ******************************************************************************
+ * DO NOT CHANGE
+ * >>>>>>>>>>>>
+ ******************************************************************************/
+/******************************************************************************
+ * DEFINE FONTS
+ ******************************************************************************/
 #include <U8g2lib.h>
 #include "99_4x6_t_german.h"   // Special fonts which have only the german "umlauts" instead of all
 #include "99_5x8_t_german.h"   // extendet characters (>127). Use "4x6_tf.h" if you need all ANSI characters >127
@@ -27,12 +127,12 @@ unsigned long previousMillis_force  = 0;
 unsigned long previousMillis_clock  = 0;
 unsigned long previousMillis_late   = 0;
 unsigned long loop_interval  =    100;
-unsigned long clock_interval =   6000;
+unsigned long clock_interval =  20000;
 unsigned long late_interval  =  60000;
 unsigned long force_interval = 120000;
 
-#ifndef USE_WIFI
 void zza_loop() {
+  #ifndef USE_WIFI
   //================================================================================================
   // STELL SCHLEIFE
   //================================================================================================
@@ -44,28 +144,19 @@ void zza_loop() {
       acc_articles[i].state_is = acc_articles[i].state_set;
       acc_articles[i].power_set = 0;
     }
-    /* OLD
-    // if ( acc_articles[i].state_is != acc_articles[i].state_set ) 
-    } if ( acc_articles[i].power_set == 1 || ( acc_articles[i].state_is != acc_articles[i].state_set ) )
-    {
-
-      if ( acc_articles[i].state_set == RED ) Change_Display_on_RailNr(acc_articles[i].RailNr, acc_articles[i].msg_RED);
-      else Change_Display_on_RailNr(acc_articles[i].RailNr, acc_articles[i].msg_GREEN);
-      acc_articles[i].state_is = acc_articles[i].state_set;
-      acc_articles[i].power_is = acc_articles[i].power_set;
-    }
-    */
   }
   //================================================================================================
   // ENDE - STELL SCHLEIFE
   //================================================================================================
+  #endif
   // RANDOM VERSPÄTUNG
-  
+  #ifdef RANDOM_LATE
   if (currentMillis - previousMillis_late >= late_interval) {
     previousMillis_late = currentMillis;
-    uint8_t be_late = random(LATE_COUNT);
+    //uint8_t be_late = random(LATE_COUNT);
     uint8_t who = random(OLED_COUNT);
     if ( oleds[who].Msg_No_Displayed >= 2 ) {
+      uint8_t be_late = oleds[who].Late + 1;
       if ( be_late > 0 ) {
         oleds[who].Late = Text_Late[be_late].verspaetung;
         oleds[who].UpdateDisplay = UPD_DISP_ROLL;
@@ -82,16 +173,42 @@ void zza_loop() {
       }
     }
   }
-
+  #endif
 }
-#endif
 
 void setup() {
-//  #ifdef DEBUG
+  #ifdef DEBUG
     Serial.begin(SERIAL_BAUDRATE);
+    Serial.println();
+
+    Serial.print("Running Sketch: ");
+    Serial.println(__FILE__);
+    Serial.println();
+
+    // SHOW BOARD INFORMATION
+    #if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
+      Serial.println("TEENSY 3.x HARDWARE");
+    #endif
+    #if defined(__AVR_ATmega328P__)
+      Serial.println("Arduino UNO, NANO");
+    #endif
+    #if defined(__AVR_ATmega2560__)
+      Serial.println("Arduino MEGA");
+    #endif
+    #ifdef ARDUINO_ESP8266_WEMOS_D1MINI
+      Serial.println("ARDUINO_ESP8266_WEMOS_D1MINI");
+    #endif
+    #ifdef ARDUINO_LOLIN_D32
+      Serial.println("ARDUINO_LOLIN_D32");
+    #endif
+    #ifdef ARDUINO_LOLIN_D32_PRO
+      Serial.println("ARDUINO_LOLIN_D32_PRO");
+    #endif
+
     Serial.print("OLED Anzahl: ");
     Serial.println(OLED_COUNT);
-//  #endif
+
+  #endif
   Setup_LAUFTEXT();
   Setup_OLEDs();            // Calls u8g.begin() for all displays and displays the first screens
   #ifdef USE_MACAN
@@ -140,8 +257,6 @@ void loop() {
       }
     }
 
-
-
     previousMillis_loop = currentMillis;
   }
   
@@ -156,9 +271,7 @@ void loop() {
   } else
   #endif
   {
-    #if defined USE_DCC || defined USE_MACAN
     zza_loop();
-    #endif
     #ifdef USE_TELNET
     telnet_loop();
     #endif

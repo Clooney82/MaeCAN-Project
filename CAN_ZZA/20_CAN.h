@@ -1,3 +1,7 @@
+/******************************************************************************
+ * DO NOT CHANGE
+ * >>>>>>>>>>>>
+ ******************************************************************************/
 #include <MCAN.h>
 #include <EEPROM.h>
 
@@ -6,8 +10,12 @@
 #endif
 MCAN mcan;
 CanDevice device;
-
-
+/******************************************************************************
+ * <<<<<<<<<<<<<
+ * DO NOT CHANGE
+ ******************************************************************************
+ * Debug options:
+ ******************************************************************************/
 #ifdef DEBUG
   #define DEBUG_CONFIG
   //#define DEBUG_CAN
@@ -15,17 +23,16 @@ CanDevice device;
   //#define DEBUG_MCAN
 #endif
 /******************************************************************************
- ******************************************************************************
- ******************************************************************************
- ******************************************************************************/
-
-/******************************************************************************
  * Allgemeine Setup Daten:
  ******************************************************************************/
 #define VERS_HIGH 0       // Versionsnummer vor dem Punkt
 #define VERS_LOW  1       // Versionsnummer nach dem Punkt
 #define BOARD_NUM 1       // Identifikationsnummer des Boards (Anzeige in der CS2)
 #define UID 0x10143978    // CAN-UID - please change. Must be unique
+/******************************************************************************
+ * DO NOT CHANGE
+ * >>>>>>>>>>>>
+ ******************************************************************************/
 
 /******************************************************************************
  * Allgemeine Konstanten:
@@ -41,24 +48,6 @@ byte     uid_mat[4];
 uint8_t  config_index = 0;
 bool     config_sent = 0;
 bool     locked = false;
-
-/******************************************************************************
- ******************************************************************************
- ******************************************************************************
- ******************************************************************************/
-
-/******************************************************************************
- * Allgemeine Setup Daten:
- ******************************************************************************/
-/*---------------------------------------
- => Basisadresse ( x = base_address + 1 ) für die initiale Adresskonfiguration (see config_own_adresses_manual() )
- => base_address =   0 ===> 1, 2, 3, 4, ...
- => base_address = 100 ===> 101, 102, 103, 104, ...
- ---------------------------------------*/
-/******************************************************************************
-   Allgemeine Konstanten:
- ******************************************************************************/
-//int start_adrs_channel = 2;
 
 /******************************************************************************
    Variablen der Magnetartikel:
@@ -94,7 +83,7 @@ class BackgroundClass {
 private:
   MCANMSG mcan_frame;
 public:
-  void incomingFrame(MCANMSG &mcan_frame_in); 
+  void incomingFrame(MCANMSG &mcan_frame_in);
   #if (defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))  // teensy 3.0/3.1-3.2/LC/3.5/3.6
    bool frameHandler(CAN_message_t &frame, int mailbox, uint8_t controller); //overrides the parent version so we can actually do something
   #endif
@@ -129,7 +118,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
       Serial.print(" - Recieved ACC-Frame for ACC (local ID): ");
       Serial.println(locid);
     #endif
-    
+
     for (int i = 0; i < NUM_ACCs; i++) {
       if (locid == acc_articles[i].locID) {
         #ifdef DEBUG_CAN
@@ -230,15 +219,15 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
   // ENDE - Befehle nur für eine UID
   //==================================================================================================
   } else if ((mcan_frame_in.cmd == SYS_CMD) && (mcan_frame_in.resp_bit == 0)) {
-      if ( ( (uid_mat[0] == mcan_frame_in.data[0]) && 
-             (uid_mat[1] == mcan_frame_in.data[1]) && 
-             (uid_mat[2] == mcan_frame_in.data[2]) && 
-             (uid_mat[3] == mcan_frame_in.data[3]) 
-           ) || ( 
-            (0 == mcan_frame_in.data[0]) && 
-            (0 == mcan_frame_in.data[1]) && 
-            (0 == mcan_frame_in.data[2]) && 
-            (0 == mcan_frame_in.data[3]) 
+      if ( ( (uid_mat[0] == mcan_frame_in.data[0]) &&
+             (uid_mat[1] == mcan_frame_in.data[1]) &&
+             (uid_mat[2] == mcan_frame_in.data[2]) &&
+             (uid_mat[3] == mcan_frame_in.data[3])
+           ) || (
+            (0 == mcan_frame_in.data[0]) &&
+            (0 == mcan_frame_in.data[1]) &&
+            (0 == mcan_frame_in.data[2]) &&
+            (0 == mcan_frame_in.data[3])
           ) ){
       //----------------------------------------------------------------------------------------------
       // START - STOP / GO / HALT     -
@@ -270,7 +259,7 @@ void BackgroundClass::incomingFrame(MCANMSG &mcan_frame_in)//CAN_message_t &fram
     // ENDE - STOP / GO / HALT
     //------------------------------------------------------------------------------------------------
   }
-  
+
 }
 #if (defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__))  // teensy 3.0/3.1-3.2/LC/3.5/3.6
 bool BackgroundClass::frameHandler(CAN_message_t &frame, int mailbox, uint8_t controller)

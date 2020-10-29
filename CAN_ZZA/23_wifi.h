@@ -1,7 +1,5 @@
-#include <ESP8266WiFi.h>
-
 /******************************************************************************
- * Allgemeine Setup Daten:
+ * Wireless Network setup:
  ******************************************************************************/
 /*
     const char* KNOWN_SSID[] = {"SSID0", "SSID1", "SSID2", "SSID3"};
@@ -11,12 +9,27 @@
 const char* KNOWN_SSID[] = {"SSID0", "SSID1", "SSID2", "SSID3"};
 const char* KNOWN_PASSWORD[] = {"Password0", "Password1", "Password2", "Password3"};
 
-const int   KNOWN_SSID_COUNT = sizeof(KNOWN_SSID) / sizeof(KNOWN_SSID[0]); // number of known networks
-
-
+/******************************************************************************
+ * DO NOT CHANGE
+ * >>>>>>>>>>>>
+ ******************************************************************************/
+// ESP Wifi:
+//#include <ESP8266WiFi.h>
+#ifdef ESP32
+  #include <esp_wifi.h>
+  #include <WiFi.h>
+  //#include <WiFiClient.h>
+  //#define ESP_getChipId()   ((uint32_t)ESP.getEfuseMac())
+#else
+  #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
+#endif
+// Wifi Shield:
+// #include <WiFi.h>
 #ifdef USE_TELNET
   WiFiServer server(23);
 #endif
+
+const int   KNOWN_SSID_COUNT = sizeof(KNOWN_SSID) / sizeof(KNOWN_SSID[0]); // number of known networks
 
 void setup_wifi() {
   boolean wifiFound = false;
@@ -25,12 +38,9 @@ void setup_wifi() {
   // ----------------------------------------------------------------
   // Set WiFi to station mode and disconnect from an AP if it was previously connected
   // ----------------------------------------------------------------
-  WiFi.mode(WIFI_STA);
+  //WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
-  #ifdef DEBUG_WIFI
-    Serial.println("WiFi Setup done");
-  #endif
 
   // ----------------------------------------------------------------
   // WiFi.scanNetworks will return the number of networks found
@@ -65,7 +75,10 @@ void setup_wifi() {
       Serial.println(WiFi.SSID(i)); // Print current SSID
     #endif
     for (n = 0; n < KNOWN_SSID_COUNT; n++) { // walk through the list of known SSID and check for a match
+// ESP Wifi:
       if (strcmp(KNOWN_SSID[n], WiFi.SSID(i).c_str())) {
+// Wifi Shield:
+//      if (strcmp(KNOWN_SSID[n], WiFi.SSID(i))) {
         #ifdef DEBUG_WIFI
           Serial.print(F("\tNot matching "));
           Serial.println(KNOWN_SSID[n]);
@@ -80,8 +93,16 @@ void setup_wifi() {
 
   if (!wifiFound) {
     #ifdef DEBUG_WIFI
-      Serial.println(F("no Known network identified. Reset to try again"));
+      Serial.println(F("no known network identified. Reset to try again"));
     #endif
+    for (uint8_t OLED_No = 0; OLED_No < OLED_COUNT; OLED_No++) // Initialize the OLEDs
+    { oleds[OLED_No].oled->clearBuffer();
+      oleds[OLED_No].oled->setFont(FONT_5x8);
+      oleds[OLED_No].oled->drawStr(1, 15, "no known network found.");
+      oleds[OLED_No].oled->drawStr(1, 25, "Reset to try again!");
+      oleds[OLED_No].oled->sendBuffer();
+    }
+    delay(5000);
     while (true); // no need to go further, hang in there, will auto launch the Soft WDT reset
   }
 
@@ -92,6 +113,13 @@ void setup_wifi() {
     Serial.print(F("\nConnecting to "));
     Serial.println(KNOWN_SSID[n]);
   #endif
+  for (uint8_t OLED_No = 0; OLED_No < OLED_COUNT; OLED_No++) // Initialize the OLEDs
+  { oleds[OLED_No].oled->clearBuffer();
+    oleds[OLED_No].oled->setFont(FONT_5x8);
+    oleds[OLED_No].oled->drawStr(1, 15, "Connecting to");
+    oleds[OLED_No].oled->drawStr(1, 25, KNOWN_SSID[n]);
+    oleds[OLED_No].oled->sendBuffer();
+  }
   // ----------------------------------------------------------------
   // We try to connect to the WiFi network we found
   // ----------------------------------------------------------------
@@ -112,6 +140,22 @@ void setup_wifi() {
     Serial.println(F("WiFi connected, your IP address is "));
     Serial.println(WiFi.localIP());
   #endif
+  String tmp_strng = WiFi.localIP().toString();
+  char tmp_char[15];
+  tmp_strng.toCharArray(tmp_char, 15);
+  for (uint8_t OLED_No = 0; OLED_No < OLED_COUNT; OLED_No++) // Initialize the OLEDs
+  { oleds[OLED_No].oled->clearBuffer();
+    oleds[OLED_No].oled->setFont(FONT_5x8);
+    oleds[OLED_No].oled->drawStr(1, 15, "My IP is");
+    oleds[OLED_No].oled->drawStr(1, 25, tmp_char);
+    oleds[OLED_No].oled->sendBuffer();
+  }
+
+  #ifdef DEBUG_WIFI
+    Serial.println("WiFi Setup done");
+  #endif
+
+  delay(5000);
 }
 
 void wifi_loop() {

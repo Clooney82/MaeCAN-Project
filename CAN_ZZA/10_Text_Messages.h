@@ -22,6 +22,10 @@
 //            "lauftext" is an exception to this sequence. This is handled in function
 //            Short_Mode_Next_ProcState()
 
+/******************************************************************************
+ * DO NOT CHANGE
+ * >>>>>>>>>>>>
+ ******************************************************************************/
 typedef struct 
 {
   char uhrzeit[6]   ;
@@ -34,6 +38,10 @@ typedef struct
   char lauftext[100];
 } MESSAGE_T;
 
+/******************************************************************************
+ * <<<<<<<<<<<<<
+ * DO NOT CHANGE
+ ******************************************************************************/
  MESSAGE_T Text_Messages[] =
 {
 //         Uhrzeit  Zugnummer  Ziel                Zuglauf1                Zuglauf2                abschnitt  Wagenstand  lauftext  1         2         3         4         5         6         7         8         9        10
@@ -48,7 +56,7 @@ typedef struct
 /*  6 */ { "02:50", "MPZ 05",  "Ulm",              "Gleislinge a.d.S.",    "",                     "  CDE  ", "  22-  ",  "+++ Sonderzug +++" },
 /*  7 */ { "03:00", "RB 01",   "Oberdorf",         "Unterberg",            "",                     "   DE  ", "   22  ",  "" },
 /*  8 */ { "03:15", "VT95",    "Oberdorf",         "Unterberg",            "",                     "   DE  ", "   22  ",  "" },
-/*  9 */ { "03:30", "RB95.9",  "Oberdorf",         "Unterberg",            "",                     "   D-  ", "   2-  ",  "" },
+/*  9 */ { "03:30", "VT95.9",  "Oberdorf",         "Unterberg",            "",                     "   D-  ", "   2-  ",  "" },
 /* 10 */ { "04:00", "RE 1234", "Stuttgart",        "Plochingen - ",        "Esslingen",            " -CDEF ", " -2221 ",  "" },
 /* 11 */ { "04:15", "RE 2345", "Ulm",              "Gleislinge a.d.S.",    "",                     " -CDEF ", " -2221 ",  "" },
 #if (defined(__MK20DX256__) || defined(__MK64FX512__)|| defined(__MK66FX1M0__))
@@ -65,6 +73,10 @@ typedef struct
 ///* xx */ { "", "", "", "", "", "ABCDEFG", "", "" },
 ///* xx */ { "", "", "", "", "", "ABCDEFG", "", "" },
 ///* xx */ { "", "", "", "", "", "ABCDEFG", "", "" },
+/******************************************************************************
+ * DO NOT CHANGE
+ * >>>>>>>>>>>>
+ ******************************************************************************/
 #endif
 #ifdef USE_WIFI
 /* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
@@ -91,6 +103,16 @@ typedef struct
 LATE_T Text_Late[] = 
 {
     {   0, "" },
+    {   0, "" },
+    {   1, "Versp\344tung ca 5 Min" },
+    {   2, "Versp\344tung ca 10 Min" },
+    {   3, "Versp\344tung ca 15 Min" },
+    {   4, "Versp\344tung ca 20 Min" },
+    {   5, "Versp\344tung ca 30 Min" },
+    {   6, "Versp\344tung ca 60 Min" },
+    {   7, "Versp\344tung ca 120 Min" },
+    {   8, "Versp\344tung ca 180 Min" },
+/*         
     {   5, "Versp\344tung ca 5 Min" },
     {  10, "Versp\344tung ca 10 Min" },
     {  15, "Versp\344tung ca 15 Min" },
@@ -99,6 +121,7 @@ LATE_T Text_Late[] =
     {  60, "Versp\344tung ca 60 Min" },
     { 120, "Versp\344tung ca 120 Min" },
     { 180, "Versp\344tung ca 180 Min" },
+*/
 };
 
 #define LATE_COUNT (sizeof(Text_Late)/sizeof(LATE_T))
