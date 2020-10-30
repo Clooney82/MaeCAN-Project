@@ -9,8 +9,10 @@
 /******************************************************************************
  * Usage options:
  ******************************************************************************/
-#define DEBUG           // General debug messages
+//#define DEBUG           // General debug messages
 //#define DEBUG_WIFI      // debug WiFi
+//#define DEBUG_TELNET     // debug telnet
+//#define DEBUG_HTTP
 
 /******************************************************************************
  * PROTOCOL OPTIONS:
@@ -19,7 +21,7 @@
  ******************************************************************************/
 //#define USE_MACAN     // enable this if you want to use MäCAN Interface
 //#define USE_DCC       // enable this if you want to use DCC
-#define USE_WIFI      // enable this if you want wifi (either Telnet or MQTT)
+#define USE_WIFI      // enable this if you want wifi
                       // only Available on ESP8266 hardware.
 //#define ESP32
 
@@ -44,9 +46,9 @@
  * RANDOM_LATE      -> Puts random delay to the trains
  ******************************************************************************/
 #define DYNAMIC_CLOCK
-#define DYNAMIC_DEPARTURE_TIME
+//#define DYNAMIC_DEPARTURE_TIME
 #define USE_ANALOG_CLOCK
-#define RANDOM_LATE
+//#define RANDOM_LATE
 
 /******************************************************************************
  * WIFI USAGE OPTIONS:
@@ -59,6 +61,7 @@
   //#define USE_MANUAL_IP     // Manual IP Setup
   #define USE_WIFI_CLOCK      // Enable option to control clock via WiFi (telnet)
   #define USE_TELNET          // Use telnet to control Displays
+  #define USE_HTTP            // Use http Webserver to control Displays (work in progress)
 #endif
 
 /******************************************************************************
@@ -289,10 +292,11 @@ typedef struct
  * e.g. if you have 4 RAIL, you need 4 entries here
  ******************************************************************************/
 const RAILS_T rail_definition[] = {
-                               "1a",
+//                               "1a",
                                 "1",
 //                                "2", 
 //                                "3", 
+//                                "4"
 };
 
 /******************************************************************************
@@ -312,8 +316,8 @@ OLED_T oleds[] = { //OLED,   OLED_Enable_Pin, RailNr, RailSide,          UpdateD
  ******************************************************************************/
 OLED_T oleds[] = { //OLED, RailNr, RailSide, UpdateDisplay
                   {  &oled0, "1a", GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
-                  {  &oled1,  "1", GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
-                  {  &oled2,  "1", GleisSeite_Links,  UPD_DISP_ONCE, 0, 0, 0, 0},
+//                  {  &oled1,  "1", GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
+//                  {  &oled2,  "1", GleisSeite_Links,  UPD_DISP_ONCE, 0, 0, 0, 0},
 //                  {  &oled3,  "2", GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
 //                  {  &oled4,  "2",  GleisSeite_Links, UPD_DISP_ONCE, 0, 0, 0, 0},
 //                  {  &oled5,  "3", GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},

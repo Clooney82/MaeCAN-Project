@@ -35,7 +35,7 @@
  ******************************************************************************
  * Setting of Traindata via telnet
  * ----------------------------------------------------------------------------
- * -G <GLEIS> -U <ABFAHRTSZEIT> -N <ZUGNUMMER> -Z <ZUGZIEL> -1 <ZUGLAUF1> -2 <ZUGLAUF2> -W <WAGENSTAND> -A <HALTEPOSITION> -L <LAUFTEXT>
+ * -G <GLEIS> -U <ABFAHRTSZEIT> -N <ZUGNUMMER> -Z <ZUGZIEL> -1 <ZUGLAUF1> -2 <ZUGLAUF2> -W <ABSCHNITT> -W <WAGENSTAND> -L <LAUFTEXT>
  * ----------------------------------------------------------------------------
  * Parameter definition:
  * ---------------------
@@ -45,16 +45,16 @@
  * -Z <ZUGZIEL>       -> train target             -> max  16 digits
  * -1 <ZUGLAUF1>      -> next stop (1)            -> max  20 digits
  * -2 <ZUGLAUF2>      -> next stop (2)            -> max  20 digits
+ * -A <ABSCHNITT>     ->                          -> max   7 digits
  * -W <WAGENSTAND>    ->                          -> max   7 digits
- * -A <HALTEPOSITION> ->                          -> max   7 digits
  * -L <LAUFTEXT>      -> rolling text             -> max 100 digits
  * ----------------------------------------------------------------------------
  * German "Umlaute" need to be send as their representative eg:
  * Ü=Ue, ü=ue, Ä=Ae, ä=ae and so on.  
  * ----------------------------------------------------------------------------
  * example:
- * Windows:     C:\Program Files (x86)\Nmap> echo "-G 1a -U 07:24 -N ICE 153 -Z Mainz Hbf -1 Schlier ueber -2  Karlsruhe nach -W ABCDEFG -A -222F-- -L +++ Vorsicht: STUMMI-ICE faehrt durch +++" | ncat 10.0.0.57 23
- * Linux/MacOS: echo "-G 1a -U 07:24 -N ICE 153 -Z Mainz Hbf -1 Schlier ueber -2  Karlsruhe nach -W ABCDEFG -A -222F-- -L +++ Vorsicht: STUMMI-ICE faehrt durch +++" | netcat 10.0.0.57 23
+ * Windows:     C:\Program Files (x86)\Nmap> echo "-G 1a -U 07:24 -N ICE 153 -Z Mainz Hbf -1 Schlier ueber -2  Karlsruhe nach -A ABCDEFG -W -222F-- -L +++ Vorsicht: STUMMI-ICE faehrt durch +++" | ncat 10.0.0.57 23
+ * Linux/MacOS: echo "-G 1a -U 07:24 -N ICE 153 -Z Mainz Hbf -1 Schlier ueber -2  Karlsruhe nach -A ABCDEFG -W -222F-- -L +++ Vorsicht: STUMMI-ICE faehrt durch +++" | netcat 10.0.0.57 23
  ******************************************************************************/
 /******************************************************************************
  * DO NOT CHANGE
@@ -62,7 +62,7 @@
  ******************************************************************************/
 void setup_telnet() {
   // init Telent Server
-  server.begin();
+  telnet_server.begin();
   delay(100);
 
 
@@ -160,8 +160,8 @@ void processCommand(String cmdString) {
     uint8_t pos_Z  = cmdString.indexOf("-Z");
     uint8_t pos_Z1 = cmdString.indexOf("-1");
     uint8_t pos_Z2 = cmdString.indexOf("-2");
-    uint8_t pos_W  = cmdString.indexOf("-W");
     uint8_t pos_A  = cmdString.indexOf("-A");
+    uint8_t pos_W  = cmdString.indexOf("-W");
     uint8_t pos_L  = cmdString.indexOf("-L");
   
     String RAIL           = cmdString.substring(pos_G  + 3, pos_U);
@@ -169,9 +169,9 @@ void processCommand(String cmdString) {
     String TRAIN_NUMBER   = cmdString.substring(pos_N  + 3, pos_Z);
     String DESTINATION    = cmdString.substring(pos_Z  + 3, pos_Z1);
     String DESTINATION1   = cmdString.substring(pos_Z1 + 3, pos_Z2);
-    String DESTINATION2   = cmdString.substring(pos_Z2 + 3, pos_W);
-    String WAGONPOSITION  = cmdString.substring(pos_W  + 3, pos_A);
-    String HALTEPOSITION  = cmdString.substring(pos_A  + 3, pos_L);
+    String DESTINATION2   = cmdString.substring(pos_Z2 + 3, pos_A);
+    String H_ABSCHNITT    = cmdString.substring(pos_A  + 3, pos_W);
+    String H_WAGENSTAND   = cmdString.substring(pos_W  + 3, pos_L);
     String ROLLINGTEXT    = cmdString.substring(pos_L  + 3);
 
     // Remove emty characters
@@ -181,8 +181,8 @@ void processCommand(String cmdString) {
     DESTINATION.trim();
     DESTINATION1.trim();
     DESTINATION2.trim();
-    //WAGONPOSITION.trim();
-    //HALTEPOSITION.trim();
+    //H_ABSCHNITT.trim();
+    //H_WAGENSTAND.trim();
     ROLLINGTEXT.trim();
 
   
@@ -203,8 +203,8 @@ void processCommand(String cmdString) {
         DESTINATION.toCharArray(Text_Messages[i+2].ziel, 17);
         DESTINATION1.toCharArray(Text_Messages[i+2].zuglauf1, 21);
         DESTINATION2.toCharArray(Text_Messages[i+2].zuglauf2, 21);
-        HALTEPOSITION.toCharArray(Text_Messages[i+2].abschnitt, 8);
-        WAGONPOSITION.toCharArray(Text_Messages[i+2].wagenstand, 8);
+        H_ABSCHNITT.toCharArray(Text_Messages[i+2].abschnitt, 8);
+        H_WAGENSTAND.toCharArray(Text_Messages[i+2].wagenstand, 8);
         ROLLINGTEXT.toCharArray(Text_Messages[i+2].lauftext, 100);
   
         Change_Display_on_RailNr(RailNo, i+2);
@@ -217,26 +217,26 @@ void processCommand(String cmdString) {
 
 void telnet_loop()
 {
-  WiFiClient client = server.available();
-  client.setTimeout(100);
-  if (client)
+  WiFiClient telnet_client = telnet_server.available();
+  telnet_client.setTimeout(100);
+  if (telnet_client)
   {
-    while (client.connected())
+    while (telnet_client.connected())
     {
-      if (client.available())
+      if (telnet_client.available())
       {
-        String commandStr = client.readStringUntil('\r');  // Read char until linefeed
-        //String commandStr = client.readStringUntil('\n');  // Read char until linefeed  
+        String commandStr = telnet_client.readStringUntil('\r');  // Read char until linefeed
+        //String commandStr = telnet_client.readStringUntil('\n');  // Read char until linefeed  
 
         #ifdef DEBUG
           Serial.println("recieved command:");
           Serial.println(commandStr);
         #endif
-        client.print("recieved command: ");
-        client.println(commandStr);
+        telnet_client.print("recieved command: ");
+        telnet_client.println(commandStr);
         processCommand(commandStr);                        // Process the received command
         delay(1); 
-        client.stop();
+        telnet_client.stop();
       }
     }
   }

@@ -44,11 +44,11 @@ typedef struct
  ******************************************************************************/
  MESSAGE_T Text_Messages[] =
 {
-//         Uhrzeit  Zugnummer  Ziel                Zuglauf1                Zuglauf2                abschnitt  Wagenstand  lauftext  1         2         3         4         5         6         7         8         9        10
+//         Uhrzeit  Zugnummer  Ziel                Zuglauf1                Zuglauf2                Abschnitt  Wagenstand  Lauftext  1         2         3         4         5         6         7         8         9        10
 //         "12345", "1234567", "1234567890123456", "12345678901234567890", "12345678901234567890", "1234567", "1234567",  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
 /*  0 */ { "00:00", "",        "",                 "",                     "",                     "",        "",         "" },
 /*  1 */ { "01:00", "",        " Zugdurchfahrt",   "",                     "",                     "",        "",         "+++ Vorsicht am Bahnsteig +++" },
-#if !defined USE_DCC || !defined USE_MACAN
+#if defined USE_DCC || defined USE_MACAN
 /*  2 */ { "02:00", "MPZ 01",  "Oberdorf",         "Unterberg",            "",                     "  CDE  ", "  22-  ",  "" },
 /*  3 */ { "02:15", "MPZ 02",  "Oberdorf",         "Unterberg",            "",                     "   DE  ", "   22  ",  "" },
 /*  4 */ { "02:30", "MPZ 03",  "Oberdorf",         "Unterberg",            "",                     "  CDE  ", "  22-  ",  "" },
@@ -88,6 +88,7 @@ typedef struct
 /* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
 /* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
 /* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
+/* EL */ { "",     "",        "",                 "",                     "",                     "",        "",         "" }, // EMPTY ENTRY TO WIFI
 #endif
 };
  // End of the Text_Messages string
@@ -102,7 +103,6 @@ typedef struct
 
 LATE_T Text_Late[] = 
 {
-    {   0, "" },
     {   0, "" },
     {   1, "Versp\344tung ca 5 Min" },
     {   2, "Versp\344tung ca 10 Min" },

@@ -1,7 +1,8 @@
 /******************************************************************************
  * Zugzielanzeiger
- * Version 0.4
- ******************************************************************************
+ */
+#define VERSION "v0.5"
+/*******************************************************************************
  * Config files:
  * ---------------
  * 00_GLOBAL_CONFIG.h   <= GLOBAL CONFIG FILE
@@ -10,6 +11,10 @@
  * 23_wifi.h            <= WiFi configuration file
  ******************************************************************************
  * Version History:
+ * 0.5:
+ * * Implementation of HTTP Webserver for controling Displays
+ * * -> see 25_http.h
+ * * Bugfix (Telnet): Wrong display of ABSCHNITT & WAGENSTAND
  * 0.4:
  * * I2C OLED Display implemention
  * 0.3:
@@ -119,6 +124,9 @@
 #ifdef USE_TELNET
   #include "24_telnet.h"
 #endif
+#ifdef USE_HTTP
+  #include "25_http.h"
+#endif
 
 uint8_t tst_msg = 0;
 unsigned long currentMillis  = 0;
@@ -178,11 +186,13 @@ void zza_loop() {
 
 void setup() {
   #ifdef DEBUG
+    delay(500);
     Serial.begin(SERIAL_BAUDRATE);
+    delay(500);
     Serial.println();
 
     Serial.print("Running Sketch: ");
-    Serial.println(__FILE__);
+    Serial.println(F(VERSION "  " __DATE__ "  " __TIME__));
     Serial.println();
 
     // SHOW BOARD INFORMATION
@@ -211,6 +221,15 @@ void setup() {
   #endif
   Setup_LAUFTEXT();
   Setup_OLEDs();            // Calls u8g.begin() for all displays and displays the first screens
+  for (uint8_t OLED_No = 0; OLED_No < OLED_COUNT; OLED_No++) // Initialize the OLEDs
+  { oleds[OLED_No].oled->clearBuffer();
+    oleds[OLED_No].oled->setFont(FONT_5x8);
+    oleds[OLED_No].oled->drawStr(1, 15, "Zugzielanzeiger");
+    oleds[OLED_No].oled->drawStr(1, 25, VERSION);
+    oleds[OLED_No].oled->sendBuffer();
+  }
+  delay(1000);
+
   #ifdef USE_MACAN
     setup_can();
   #endif
@@ -223,8 +242,19 @@ void setup() {
   #ifdef USE_TELNET
     setup_telnet();
   #endif
+  #ifdef USE_HTTP
+    setup_http();
+  #endif
   #ifdef DEBUG
     Serial.println("Setup done.");
+    for (uint8_t OLED_No = 0; OLED_No < OLED_COUNT; OLED_No++) // Initialize the OLEDs
+    { oleds[OLED_No].oled->clearBuffer();
+      oleds[OLED_No].oled->setFont(FONT_5x8);
+      //oleds[OLED_No].oled->drawStr(1, 15, "Setup done.");
+      oleds[OLED_No].oled->drawStr(1, 25, "Setup done.");
+      oleds[OLED_No].oled->sendBuffer();
+    }
+    delay(1000);
   #endif
 
 }
@@ -273,7 +303,10 @@ void loop() {
   {
     zza_loop();
     #ifdef USE_TELNET
-    telnet_loop();
+      telnet_loop();
+    #endif
+    #ifdef USE_HTTP
+      http_loop();
     #endif
   }
 

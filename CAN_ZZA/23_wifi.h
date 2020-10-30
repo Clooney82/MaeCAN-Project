@@ -16,7 +16,7 @@ const char* KNOWN_PASSWORD[] = {"Password0", "Password1", "Password2", "Password
 // ESP Wifi:
 //#include <ESP8266WiFi.h>
 #ifdef ESP32
-  #include <esp_wifi.h>
+//  #include <esp_wifi.h>
   #include <WiFi.h>
   //#include <WiFiClient.h>
   //#define ESP_getChipId()   ((uint32_t)ESP.getEfuseMac())
@@ -26,7 +26,7 @@ const char* KNOWN_PASSWORD[] = {"Password0", "Password1", "Password2", "Password
 // Wifi Shield:
 // #include <WiFi.h>
 #ifdef USE_TELNET
-  WiFiServer server(23);
+  WiFiServer telnet_server(23);
 #endif
 
 const int   KNOWN_SSID_COUNT = sizeof(KNOWN_SSID) / sizeof(KNOWN_SSID[0]); // number of known networks
