@@ -26,7 +26,7 @@
  * DO NOT CHANGE
  * >>>>>>>>>>>>
  ******************************************************************************/
-typedef struct 
+typedef struct
 {
   char uhrzeit[6]   ;
   char zugnummer[8] ;
@@ -95,13 +95,13 @@ typedef struct
 
 #define MSG_COUNT (sizeof(Text_Messages)/sizeof(MESSAGE_T))
 
-typedef struct 
+typedef struct
 {
   uint8_t verspaetung   ;
   char text[100] ;
 } LATE_T;
 
-LATE_T Text_Late[] = 
+LATE_T Text_Late[] =
 {
     {   0, "" },
     {   1, "Versp\344tung ca 5 Min" },
@@ -112,16 +112,6 @@ LATE_T Text_Late[] =
     {   6, "Versp\344tung ca 60 Min" },
     {   7, "Versp\344tung ca 120 Min" },
     {   8, "Versp\344tung ca 180 Min" },
-/*         
-    {   5, "Versp\344tung ca 5 Min" },
-    {  10, "Versp\344tung ca 10 Min" },
-    {  15, "Versp\344tung ca 15 Min" },
-    {  20, "Versp\344tung ca 20 Min" },
-    {  30, "Versp\344tung ca 30 Min" },
-    {  60, "Versp\344tung ca 60 Min" },
-    { 120, "Versp\344tung ca 120 Min" },
-    { 180, "Versp\344tung ca 180 Min" },
-*/
 };
 
 #define LATE_COUNT (sizeof(Text_Late)/sizeof(LATE_T))

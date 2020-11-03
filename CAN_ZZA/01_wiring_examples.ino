@@ -41,7 +41,7 @@
               | [ ]                                     6[ ] |
         RANDR | [ ]A0                                   5[ ] |
    OLED_CLK   | [ ]A1           I C S P                 4[ ] |
-   OLED_MOSI  | [ ]A2         RST SCK MISO        INT5/ 3[ ] | 
+   OLED_MOSI  | [ ]A2         RST SCK MISO        INT5/ 3[ ] |
    OLED_RESET | [ ]A3         [ ] [ ] [ ]*        INT4/ 2[ ] | DCC Optocopler / or MCP2515 INT
    OLED_DC    | [ ]A4         [ ] [ ] [ ]           TX->1[ ] |
    OLED_0_CS  | [ ]A5         GND MOSI 5V           RX<>0[ ] |
@@ -64,7 +64,7 @@
               |          +--- 53 | CS                        |
               +----------------------------------------------+
 
-  Teensy 3.5: 
+  Teensy 3.5:
   USE HCPL-260L-000E instead of 6N137
                            +-----+
               +------------| USB |------------+
@@ -75,10 +75,10 @@
               | [ ]3        /   \    A8/22[ ] |
               | [ ]4       /  T  \   A7/21[ ] |
               | [ ]5       |  E  |   A6/20[ ] |
-   DCC Opto   | [ ]6       |  E  |   A5/19[ ] | 
-              | [ ]7       |  N  |   A4/18[ ] | 
-   OLED_RESET | [ ]8       |  S  |   A3/17[ ] | 
-   OLED_DC    | [ ]9       \  Y  /   A2/16[ ] | 
+   DCC Opto   | [ ]6       |  E  |   A5/19[ ] |
+              | [ ]7       |  N  |   A4/18[ ] |
+   OLED_RESET | [ ]8       |  S  |   A3/17[ ] |
+   OLED_DC    | [ ]9       \  Y  /   A2/16[ ] |
    OLED_0_CS  | [ ]10/CS    \___/    A1/15[ ] | OLED_2_CS + OLED_3_CS
    OLED_MOSI  | [ ]11/MOSI0          A0/14[ ] | OLED_1_CS + OLED_4_CS
               | [ ]12/MISO0        SCK0/13[ ] | OLED_CLK
@@ -142,7 +142,7 @@
                     |           +-----+           |
                     | +-----+   | RST |   +-----+ |
                     +-| BAT |---+-----+---| USB |-+
-                      +-----+             +-----+      
+                      +-----+             +-----+
 
   LOLIN D32 PRO:
   IFDEF ARDUINO_LOLIN_D32_PRO
@@ -153,7 +153,7 @@
                     |                             |
                     | [ ]3V3               GND[ ] |
                     | [ ]RST           MOSI/23[ ] | MOSI
-                    | [ ]VP/36          SCL/22[ ] | 
+                    | [ ]VP/36          SCL/22[ ] |
                     | [ ]VN/39            1/TX[ ] |
                     | [ ]34               3/RX[ ] |
                     | [ ]32/TFT_LED     SDA/21[ ] |
@@ -175,7 +175,7 @@
                     |-----+              +-----+  |
                     |       +-----+      | RST |  |
                     +-------| USB |------+-----+--+
-                            +-----+      
+                            +-----+
 
 
 

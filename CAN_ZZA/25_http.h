@@ -1,4 +1,3 @@
-
 #ifdef  ESP32
   #include <WebServer.h>
   WebServer web_server(80);
@@ -14,7 +13,7 @@ String displaycurrentZZA() {
     tlauftext.trim();
     String bg;
     if (tlauftext != "")  bg = String("class=\"invert\"");
-    tmphtml = tmphtml + String("  <table class=\"DISPLAY\">\r\n") + 
+    tmphtml = tmphtml + String("  <table class=\"DISPLAY\">\r\n") +
            "    <tr>\r\n" +
            "      <td align=\"CENTER\"                width=\" 88px\" id=\"R" + String(i) + "_TIME\">"     + String(Text_Messages[i+2].uhrzeit) + "</td>\r\n" +
            "      <td align=\"LEFT\"  valign=\"CENTER\" width=\"368px\" " + bg + "><marquee id=\"R" + String(i) + "_LAUFTEXT\" class=\"lauftext\">" + tlauftext  + "</marquee></td>\r\n" +
@@ -49,7 +48,7 @@ String displaycurrentZZA() {
 
 String prepareHtmlPage(bool refresh=false) {
   String htmlPage =
-    String("\r\n") + 
+    String("\r\n") +
            "<!DOCTYPE HTML>\r\n" +
            "<html lang=\"de-DE\"\r\n" +
            "<head>\r\n" +
@@ -104,13 +103,13 @@ String prepareHtmlPage(bool refresh=false) {
   return htmlPage;
 }
 
-const String endHtmlPage = R"=====( 
+const String endHtmlPage = R"=====(
   </div>
 </body>
 </html>
 )=====";
 
-const String htmlInput  = R"=====(
+const String htmlInput1 = R"=====(
   <hr>Vorschau:
   <table class="DISPLAY">
     <tr>
@@ -139,11 +138,10 @@ const String htmlInput  = R"=====(
       <td align="CENTER"                width=" 88px"><input type="time" id="DEPARTURE_TIME" name="DEPARTURE_TIME" value="15:21"><label for="DELAYED_TIME"> +<input id="DELAYED_TIME" name="DELAYED_TIME" type="number" min="0" max="240" step="5" value="0">Min</td>
       <td align="LEFT"  valign="CENTER" width="368px"><input type="text" size="20" maxlength="100" id="ROLLINGTEXT" name="ROLLINGTEXT" value="Lauftext"></td>
       <td align="RIGHT" valign="TOP"    width=" 44px"><select id="RAIL" name="RAIL">
-          <option value="1a">1a</option>
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
+)=====";
+
+
+const String htmlInput2 = R"=====(
         </select></td>
     </tr>
     <tr>
@@ -236,18 +234,26 @@ const String htmlInput  = R"=====(
       <td align="LEFT"><input type="text" size="20" maxlength="16" id="TARGET" name="TARGET" value="Berlin Ostbf"></td>
     </tr>
   </table>
-  <input type="reset" value="Reset"> <input type="submit" value="Submit"></form>
+  <input type="reset" value="Reset"> <input type="submit" name="submit" value="Submit"> <input type="submit" name="submit" value="Clear"> <input type="submit" name="submit" value="Zugdurchfahrt"></form>
   <hr>
   <button onclick="myFunction()">Vorschau</button>
 )=====";
 
+String htmlInput() {
+  String tmphtml;// = htmlInput1;
+  for (int i = 0; i < RAIL_COUNT; i++) {
+    tmphtml = tmphtml + "          <option value=\"" + String(rail_definition[i].RailNr) + "\">" + String(rail_definition[i].RailNr) + "</option>\r\n";
+  }
+  //tmphtml = tmphtml + htmlInput2;
+  return tmphtml;
+}
 
-const String htmlInputScript = R"=====( 
+const String htmlInputScript = R"=====(
   <script>
   function myFunction() {
     document.getElementById("TIME").innerHTML       = document.forms[0].elements[0].value;
     if (document.forms[0].elements[1].value != "0") {
-      document.getElementById("LAUFTEXT").innerHTML = "Verspätung ca. "+document.forms[0].elements[1].value+" Minuten";
+      document.getElementById("LAUFTEXT").innerHTML = "--- Verspätung ca. "+ document.forms[0].elements[1].value + " Minuten --- " + document.forms[0].elements[2].value;
     } else {
       document.getElementById("LAUFTEXT").innerHTML = document.forms[0].elements[2].value;
     }
@@ -290,170 +296,322 @@ void handleNotFound() {
   web_server.send(404, "text/plain", message);
 }
 
-void handleRoot() {
-  if (web_server.method() != HTTP_POST) {
-    web_server.send(200, "text/html", prepareHtmlPage(false) + htmlInput + displaycurrentZZA() + htmlInputScript + endHtmlPage);    
-  } else /* if (web_server.method() == HTTP_POST) */ {
-  // Read POST Data and send to OLED
-  // then proceed with loading Webpage
-    /*
-    String htmlPage = String("<!DOCTYPE HTML>\r\n") +
+void handleClose() {
+  String message =
+    String("<!DOCTYPE HTML>\r\n") +
            "<html lang=\"de-DE\"\r\n" +
-           "  <head>\r\n" +
-           "    <title>Bahnsteiganzeige " + String(VERSION) + "</title>\r\n" + 
-           "    <meta http-equiv=\"refresh\" content=\"2\">\r\n" + 
-           "    <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">\r\n" +
-           "  </head>\r\n" +
-           "  <body>\r\n" +
-           "  </body>\r\n" +
+           "<head>\r\n" +
+           "  <title>Bahnsteiganzeige " + String(VERSION) + "</title>\r\n" +
+           "  <meta http-equiv=\"refresh\" content=\"5; URL=http://" + WiFi.localIP().toString() + "\">\r\n" +
+           "  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">\r\n" +
+           "</head>\r\n" +
+           "<body>\r\n" +
+           "Page Not Found\r\n" +
+           "</body>\r\n" +
            "</html>\r\n";
-    web_server.send(200, "text/html", htmlPage);
-    */
-    /*String message = "POST form was:\n";
-    for (uint8_t i = 0; i < web_server.args(); i++) {
-      message += " " + web_server.argName(i) + ": " + web_server.arg(i) + "\n";
-    }*/
-    String RAIL;
-    String DEPARTURE_TIME;
-    String DELAYED;
-    String TRAIN_NUMBER;
-    String DESTINATION;
-    String DESTINATION1;
-    String DESTINATION2;
-    String H_ABSCHNITT;
-    String H_WAGENSTAND;
-    String ROLLINGTEXT;
-    
-    DEPARTURE_TIME = web_server.arg(0);
-    DELAYED        = web_server.arg(1);
-    ROLLINGTEXT    = web_server.arg(2);
-    if ( DELAYED != "0" ) ROLLINGTEXT = "--- Verspätung ca. " + DELAYED + " Minuten  ---" + ROLLINGTEXT;
-    RAIL           = web_server.arg(3);
-    TRAIN_NUMBER   = web_server.arg(4);
-    DESTINATION1   = web_server.arg(5);
-    //SECTION_A      = web_server.arg(6);
-    if ( web_server.arg(6) == "" ) {
-      H_ABSCHNITT = " ";
-    } else {
-      H_ABSCHNITT = web_server.arg(6);
-    }
-    //SECTION_B      = web_server.arg(7);
-    if ( web_server.arg(7) == "" ) {
-      H_ABSCHNITT = H_ABSCHNITT + " ";
-    } else {
-      H_ABSCHNITT = H_ABSCHNITT + web_server.arg(7);
-    }
-    //SECTION_C      = web_server.arg(8);
-    if ( web_server.arg(8) == "" ) {
-      H_ABSCHNITT = H_ABSCHNITT + " ";
-    } else {
-      H_ABSCHNITT = H_ABSCHNITT + web_server.arg(8);
-    }
-    //SECTION_D      = web_server.arg(9);
-    if ( web_server.arg(9) == "" ) {
-      H_ABSCHNITT = H_ABSCHNITT + " ";
-    } else {
-      H_ABSCHNITT = H_ABSCHNITT + web_server.arg(9);
-    }
-    //SECTION_E      = web_server.arg(10);
-    if ( web_server.arg(10) == "" ) {
-      H_ABSCHNITT = H_ABSCHNITT + " ";
-    } else {
-      H_ABSCHNITT = H_ABSCHNITT + web_server.arg(10);
-    }
-    //SECTION_F      = web_server.arg(11);
-    if ( web_server.arg(11) == "" ) {
-      H_ABSCHNITT = H_ABSCHNITT + " ";
-    } else {
-      H_ABSCHNITT = H_ABSCHNITT + web_server.arg(11);
-    }
-    //SECTION_G      = web_server.arg(12);
-    if ( web_server.arg(12) == "" ) {
-      H_ABSCHNITT = H_ABSCHNITT + " ";
-    } else {
-      H_ABSCHNITT = H_ABSCHNITT + web_server.arg(12);
-    }
-    DESTINATION2   = web_server.arg(13);
-    //WAGON_A        = web_server.arg(14);
-    if ( web_server.arg(14) == "" ) {
-      H_WAGENSTAND = H_WAGENSTAND + " ";
-    } else {
-      H_WAGENSTAND = H_WAGENSTAND + web_server.arg(14);
-    }
-    //WAGON_B        = web_server.arg(15);
-    if ( web_server.arg(15) == "" ) {
-      H_WAGENSTAND = H_WAGENSTAND + " ";
-    } else {
-      H_WAGENSTAND = H_WAGENSTAND + web_server.arg(15);
-    }
-    //WAGON_C        = web_server.arg(16);
-    if ( web_server.arg(16) == "" ) {
-      H_WAGENSTAND = H_WAGENSTAND + " ";
-    } else {
-      H_WAGENSTAND = H_WAGENSTAND + web_server.arg(16);
-    }
-    //WAGON_D        = web_server.arg(17);
-    if ( web_server.arg(17) == "" ) {
-      H_WAGENSTAND = H_WAGENSTAND + " ";
-    } else {
-      H_WAGENSTAND = H_WAGENSTAND + web_server.arg(17);
-    }
-    //WAGON_E        = web_server.arg(18);
-    if ( web_server.arg(18) == "" ) {
-      H_WAGENSTAND = H_WAGENSTAND + " ";
-    } else {
-      H_WAGENSTAND = H_WAGENSTAND + web_server.arg(18);
-    }
-    //WAGON_F        = web_server.arg(19);
-    if ( web_server.arg(19) == "" ) {
-      H_WAGENSTAND = H_WAGENSTAND + " ";
-    } else {
-      H_WAGENSTAND = H_WAGENSTAND + web_server.arg(19);
-    }
-    //WAGON_G        = web_server.arg(20);
-    if ( web_server.arg(20) == "" ) {
-      H_WAGENSTAND = H_WAGENSTAND + " ";
-    } else {
-      H_WAGENSTAND = H_WAGENSTAND + web_server.arg(20);
-    }
-    DESTINATION    = web_server.arg(21);
-    // convert the string to array of char which is expected by the u8g2 library
+  web_server.send(404, "text/html",  message);
+}
+
+void handleRoot() {
+  if (web_server.method() == HTTP_POST)  {
+    String RAIL = web_server.arg(3);
     char RailNo[4];
     RAIL.toCharArray(RailNo, 4);
-  
+    /*
     for (int i = 0; i < RAIL_COUNT; i++) {
       if ( strcmp(rail_definition[i].RailNr, RailNo) == 0 )
       {
-        DEPARTURE_TIME.toCharArray(Text_Messages[i+2].uhrzeit, 6);
-        TRAIN_NUMBER.toCharArray(Text_Messages[i+2].zugnummer, 8);
-        DESTINATION.toCharArray(Text_Messages[i+2].ziel, 17);
-        DESTINATION1.toCharArray(Text_Messages[i+2].zuglauf1, 21);
-        DESTINATION2.toCharArray(Text_Messages[i+2].zuglauf2, 21);
-        H_ABSCHNITT.toCharArray(Text_Messages[i+2].abschnitt, 8);
-        H_WAGENSTAND.toCharArray(Text_Messages[i+2].wagenstand, 8);
-        ROLLINGTEXT.toCharArray(Text_Messages[i+2].lauftext, 100);
-  
-        Change_Display_on_RailNr(RailNo, i+2);
-        
+        Text_Messages[i+2].uhrzeit[0] = '\0';
+        Text_Messages[i+2].zugnummer[0] = '\0';
+        Text_Messages[i+2].ziel[0] = '\0';
+        Text_Messages[i+2].zuglauf1[0] = '\0';
+        Text_Messages[i+2].zuglauf2[0] = '\0';
+        Text_Messages[i+2].abschnitt[0] = '\0';
+        Text_Messages[i+2].wagenstand[0] = '\0';
+        Text_Messages[i+2].lauftext[0] = '\0';
       }
     }
-    //web_server.send(200, "text/plain", message);
-    web_server.send(200, "text/html", prepareHtmlPage(false) + htmlInput + displaycurrentZZA() + htmlInputScript + endHtmlPage);
+    */
+    
+    if ( web_server.arg(22) == "Clear" ) {
+      for (int i = 0; i < RAIL_COUNT; i++) {
+        if ( strcmp(rail_definition[i].RailNr, RailNo) == 0 )
+        {
+          Text_Messages[i+2] = Text_Messages[0];
+          strcpy(Text_Messages[i+2].uhrzeit,uhrzeit);
+        }
+      }
+      Change_Display_on_RailNr(RailNo, 0);
+    } else if ( web_server.arg(22) == "Zugdurchfahrt" ) {
+      for (int i = 0; i < RAIL_COUNT; i++) {
+        if ( strcmp(rail_definition[i].RailNr, RailNo) == 0 )
+        {
+          Text_Messages[i+2] = Text_Messages[1];
+          strcpy(Text_Messages[i+2].uhrzeit,uhrzeit);
+        }
+      }
+      Change_Display_on_RailNr(RailNo, 1);
+    } else if ( web_server.arg(22) == "Submit" ) {
+      // Read POST Data and send to OLED
+      // then proceed with loading Webpage
+      /*
+      String message = "POST form was:\n";
+      for (uint8_t i = 0; i < web_server.args(); i++) {
+        message += " " + web_server.argName(i) + ": " + web_server.arg(i) + "\n";
+      }
+      web_server.send(200, "text/plain", message);
+      */
+      String DEPARTURE_TIME;
+      String DELAYED;
+      String TRAIN_NUMBER;
+      String DESTINATION;
+      String DESTINATION1;
+      String DESTINATION2;
+      String H_ABSCHNITT;
+      String H_WAGENSTAND;
+      String ROLLINGTEXT;
+  
+      DEPARTURE_TIME = web_server.arg(0);
+      DELAYED        = web_server.arg(1);
+      ROLLINGTEXT    = web_server.arg(2);
+      if ( DELAYED != "0" ) ROLLINGTEXT = "--- Verspätung ca. " + DELAYED + " Minuten  --- " + ROLLINGTEXT;
+      //RAIL           = web_server.arg(3);
+      TRAIN_NUMBER   = web_server.arg(4);
+      DESTINATION1   = web_server.arg(5);
+      //SECTION_A      = web_server.arg(6);
+      if ( web_server.arg(6) == "" ) {
+        H_ABSCHNITT = " ";
+      } else {
+        H_ABSCHNITT = web_server.arg(6);
+      }
+      //SECTION_B      = web_server.arg(7);
+      if ( web_server.arg(7) == "" ) {
+        H_ABSCHNITT = H_ABSCHNITT + " ";
+      } else {
+        H_ABSCHNITT = H_ABSCHNITT + web_server.arg(7);
+      }
+      //SECTION_C      = web_server.arg(8);
+      if ( web_server.arg(8) == "" ) {
+        H_ABSCHNITT = H_ABSCHNITT + " ";
+      } else {
+        H_ABSCHNITT = H_ABSCHNITT + web_server.arg(8);
+      }
+      //SECTION_D      = web_server.arg(9);
+      if ( web_server.arg(9) == "" ) {
+        H_ABSCHNITT = H_ABSCHNITT + " ";
+      } else {
+        H_ABSCHNITT = H_ABSCHNITT + web_server.arg(9);
+      }
+      //SECTION_E      = web_server.arg(10);
+      if ( web_server.arg(10) == "" ) {
+        H_ABSCHNITT = H_ABSCHNITT + " ";
+      } else {
+        H_ABSCHNITT = H_ABSCHNITT + web_server.arg(10);
+      }
+      //SECTION_F      = web_server.arg(11);
+      if ( web_server.arg(11) == "" ) {
+        H_ABSCHNITT = H_ABSCHNITT + " ";
+      } else {
+        H_ABSCHNITT = H_ABSCHNITT + web_server.arg(11);
+      }
+      //SECTION_G      = web_server.arg(12);
+      if ( web_server.arg(12) == "" ) {
+        H_ABSCHNITT = H_ABSCHNITT + " ";
+      } else {
+        H_ABSCHNITT = H_ABSCHNITT + web_server.arg(12);
+      }
+      DESTINATION2   = web_server.arg(13);
+      //WAGON_A        = web_server.arg(14);
+      if ( web_server.arg(14) == "" ) {
+        H_WAGENSTAND = H_WAGENSTAND + " ";
+      } else {
+        H_WAGENSTAND = H_WAGENSTAND + web_server.arg(14);
+      }
+      //WAGON_B        = web_server.arg(15);
+      if ( web_server.arg(15) == "" ) {
+        H_WAGENSTAND = H_WAGENSTAND + " ";
+      } else {
+        H_WAGENSTAND = H_WAGENSTAND + web_server.arg(15);
+      }
+      //WAGON_C        = web_server.arg(16);
+      if ( web_server.arg(16) == "" ) {
+        H_WAGENSTAND = H_WAGENSTAND + " ";
+      } else {
+        H_WAGENSTAND = H_WAGENSTAND + web_server.arg(16);
+      }
+      //WAGON_D        = web_server.arg(17);
+      if ( web_server.arg(17) == "" ) {
+        H_WAGENSTAND = H_WAGENSTAND + " ";
+      } else {
+        H_WAGENSTAND = H_WAGENSTAND + web_server.arg(17);
+      }
+      //WAGON_E        = web_server.arg(18);
+      if ( web_server.arg(18) == "" ) {
+        H_WAGENSTAND = H_WAGENSTAND + " ";
+      } else {
+        H_WAGENSTAND = H_WAGENSTAND + web_server.arg(18);
+      }
+      //WAGON_F        = web_server.arg(19);
+      if ( web_server.arg(19) == "" ) {
+        H_WAGENSTAND = H_WAGENSTAND + " ";
+      } else {
+        H_WAGENSTAND = H_WAGENSTAND + web_server.arg(19);
+      }
+      //WAGON_G        = web_server.arg(20);
+      if ( web_server.arg(20) == "" ) {
+        H_WAGENSTAND = H_WAGENSTAND + " ";
+      } else {
+        H_WAGENSTAND = H_WAGENSTAND + web_server.arg(20);
+      }
+      DESTINATION    = web_server.arg(21);
+      // convert the string to array of char which is expected by the u8g2 library
+  
+      for (int i = 0; i < RAIL_COUNT; i++) {
+        if ( strcmp(rail_definition[i].RailNr, RailNo) == 0 )
+        {
+          DEPARTURE_TIME.toCharArray(Text_Messages[i+2].uhrzeit, 6);
+          TRAIN_NUMBER.toCharArray(Text_Messages[i+2].zugnummer, 8);
+          DESTINATION.toCharArray(Text_Messages[i+2].ziel, 17);
+          DESTINATION1.toCharArray(Text_Messages[i+2].zuglauf1, 21);
+          DESTINATION2.toCharArray(Text_Messages[i+2].zuglauf2, 21);
+          H_ABSCHNITT.toCharArray(Text_Messages[i+2].abschnitt, 8);
+          H_WAGENSTAND.toCharArray(Text_Messages[i+2].wagenstand, 8);
+          ROLLINGTEXT.toCharArray(Text_Messages[i+2].lauftext, 100);
+  
+          Change_Display_on_RailNr(RailNo, i+2);
+  
+        }
+      }
+      //web_server.send(200, "text/html", prepareHtmlPage(false) + htmlInput() + htmlInputScript + endHtmlPage);
+      //web_server.send(200, "text/html", prepareHtmlPage(false) + htmlInput() + displaycurrentZZA() + htmlInputScript + endHtmlPage);
+    }
   }
+  web_server.sendContent(prepareHtmlPage(false));
+  web_server.sendContent(htmlInput1);
+  web_server.sendContent(htmlInput());
+  web_server.sendContent(htmlInput2);
+  web_server.sendContent(displaycurrentZZA());
+  web_server.sendContent(htmlInputScript);
+  web_server.sendContent(endHtmlPage);
 }
 
 
 void handleZZA() {
-  //postForms = prepareHtmlPage(true) + displaycurrentZZA() + endHtmlPage;
   web_server.send(200, "text/html", prepareHtmlPage(true) + displaycurrentZZA() + endHtmlPage);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+void handlePlain() {
+  if (web_server.method() != HTTP_POST) {
+    web_server.send(405, "text/plain", "Method Not Allowed");
+  } else {
+    web_server.send(200, "text/plain", "POST body was:\n" + web_server.arg("plain"));
+  }
+}
+
+void handleForm() {
+  if (web_server.method() != HTTP_POST) {
+    web_server.send(405, "text/plain", "Method Not Allowed");
+  } else {
+    String message = "POST form was:\n";
+    for (uint8_t i = 0; i < web_server.args(); i++) {
+      message += " " + web_server.argName(i) + ": " + web_server.arg(i) + "\n";
+    }
+    web_server.send(200, "text/plain", message);
+  }
+}
+
+
+
+
+
+
+void handle_setup_wifi() {
+  String htmlPage =
+    String("\r\n") +
+           "<!DOCTYPE HTML>\r\n" +
+           "<html lang=\"de-DE\"\r\n" +
+           "<head>\r\n" +
+           "  <title>Bahnsteiganzeige " + String(VERSION) + "</title>\r\n" +
+           "  <meta http-equiv=\"refresh\" content=\"5; URL=http://" + WiFi.localIP().toString() + "\">\r\n" +
+           "  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">\r\n" +
+           "</head>\r\n" +
+           "<body>\r\n" +
+           "\r\n" +
+           "</body>\r\n" +
+           "</html>\r\n";
+
+  web_server.send(200, "text/html", htmlPage);
+  delay(500);
+  web_server.stop();
+  delay(1000);
+  #ifdef DEBUG_HTTP
+    Serial.println("##### START CONFIG #####");
+  #endif
+
+  setup_wifi2();
+  #ifdef DEBUG_HTTP
+    Serial.println("##### CONFIG FINISHED #####");
+  #endif
+  htmlPage =
+    String("\r\n") +
+           "<!DOCTYPE HTML>\r\n" +
+           "<html lang=\"de-DE\"\r\n" +
+           "<head>\r\n" +
+           "  <title>Bahnsteiganzeige " + String(VERSION) + "</title>\r\n" +
+           "  <meta http-equiv=\"refresh\" content=\"5; URL=http://" + WiFi.localIP().toString() + "\">\r\n" +
+           "  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">\r\n" +
+           "</head>\r\n" +
+           "<body>\r\n" +
+           "\r\n" +
+           "</body>\r\n" +
+           "</html>\r\n";
+
+  web_server.send(200, "text/html", htmlPage);
+  web_server.on("/", handleRoot);
+  web_server.on("/ZZA",  handleZZA);
+  web_server.on("/ZZA/", handleZZA);
+  web_server.on("/config",  handle_setup_wifi);
+  web_server.on("/close",  handleClose);
+  web_server.onNotFound(handleNotFound);
+
+  web_server.begin();
+  #ifdef DEBUG_HTTP
+    Serial.println("HTTP web_server restarted");
+  #endif
+
+
+  //ESP.restart();
 
 }
+
+
+
+
 
 void setup_http() {
   web_server.on("/", handleRoot);
 
   web_server.on("/ZZA",  handleZZA);
   web_server.on("/ZZA/", handleZZA);
+
+  /*
+  web_server.on("/postplain/", handlePlain);
+
+  web_server.on("/postform/", handleForm);
+  */
+  web_server.on("/config",  handle_setup_wifi);
+  web_server.on("/close",  handleClose);
 
   web_server.onNotFound(handleNotFound);
 

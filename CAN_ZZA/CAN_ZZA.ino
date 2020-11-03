@@ -1,16 +1,40 @@
 /******************************************************************************
  * Zugzielanzeiger
  */
-#define VERSION "v0.5"
+#define VERSION "v0.6"
 /*******************************************************************************
  * Config files:
  * ---------------
  * 00_GLOBAL_CONFIG.h   <= GLOBAL CONFIG FILE
- * 10_Text_Message.h    <= Message definition for OLEDs
- * 20_CAN.h             <= CAN configuration file
- * 23_wifi.h            <= WiFi configuration file
+ * 10_Text_Message.h    <= Message definition for OLEDs (LINE 51 to 70)
+ * 22_OwnSetup.h        <= DCC/MM Adressconfiguration (normally not needed)
+ ******************************************************************************
+ * Used Libraries in this Project:
+ * * For all Hardware:
+ * * - U8g2               -> https://github.com/olikraus/u8g2
+ * * - MCAN               -> https://github.com/Clooney82/MaeCAN-Project/tree/master/MCAN
+ * * - MCP_CAN            -> https://github.com/Clooney82/MaeCAN-Project/tree/master/MCP_CAN
+ * * - NmraDcc            -> https://github.com/mrrwa/NmraDcc
+ * * For Teensy Hardware:
+ * * - FlexCAN            -> https://github.com/Clooney82/MaeCAN-Project/tree/master/FlexCAN
+ * * For ESP8266 Hardware:
+ * * -> https://github.com/esp8266/Arduino
+ * * - ESP8266WiFi
+ * * - ESP8266WebServer
+ * * - ESP8266WiFiMulti
+ * * - ESP_WiFiManager    -> https://github.com/khoih-prog/ESP_WiFiManager
+ * * For ESP32 Hardware:
+ * * -> https://github.com/espressif/arduino-esp32
+ * * - esp_wifi
+ * * - WiFi
+ * * - WiFiClient
+ * * - WiFiMulti.h
+ * * 
  ******************************************************************************
  * Version History:
+ * 0.6:
+ * * Changed WiFiManager
+ * * code cleanup
  * 0.5:
  * * Implementation of HTTP Webserver for controling Displays
  * * -> see 25_http.h
@@ -26,8 +50,8 @@
  ******************************************************************************
  * USING WIFI CLOCK:
  * ----------------------------------------------------------------------------
- * if "-T xx:xx" received: 
- * xx:xx is converted to analog clock image and drawn at OLED display  
+ * if "-T xx:xx" received:
+ * xx:xx is converted to analog clock image and drawn at OLED display
  * example:
  * C:\Program Files (x86)\Nmap>echo -T 13:48 | ncat 10.0.0.57 23
  * ----------------------------------------------------------------------------
@@ -62,7 +86,7 @@
  * -L <LAUFTEXT>      -> rolling text             -> max 100 digits
  * ----------------------------------------------------------------------------
  * German "Umlaute" need to be send as their representative eg:
- * Ü=Ue, ü=ue, Ä=Ae, ä=ae and so on.  
+ * Ü=Ue, ü=ue, Ä=Ae, ä=ae and so on.
  * ----------------------------------------------------------------------------
  * example:
  * C:\Program Files (x86)\Nmap>echo "-G 1a -U 07:24 -N ICE 153 -Z Mainz Hbf -1 Schlier ueber -2  Karlsruhe nach -W ABCDEFG -A -222F-- -L +++ Vorsicht: STUMMI-ICE faehrt durch +++" | ncat 10.0.0.57 23
@@ -186,8 +210,8 @@ void zza_loop() {
 
 void setup() {
   #ifdef DEBUG
-    delay(500);
     Serial.begin(SERIAL_BAUDRATE);
+    while (!Serial);
     delay(500);
     Serial.println();
 
@@ -270,7 +294,7 @@ void loop() {
       if (oleds[OLED_No].UpdateDisplay != DONT_UPD_DISP)
       {
         Write_to_OLED(OLED_No,oleds[OLED_No].Msg_No_Displayed); // Update the display and set UpdateDisplay
-        
+
         // re-Calculate position for rolling text
         oleds[OLED_No].subset++;
         if (oleds[OLED_No].subset > 3)
@@ -279,7 +303,7 @@ void loop() {
           oleds[OLED_No].offset++;
         }
       } else { // refresh Displays every 2min
-        if (currentMillis - previousMillis_force >= force_interval) 
+        if (currentMillis - previousMillis_force >= force_interval)
         {
           oleds[OLED_No].UpdateDisplay = UPD_DISP_ONCE;           // Update the display on next loop
           //Write_to_OLED(OLED_No,oleds[OLED_No].Msg_No_Displayed); // Update the display and set UpdateDisplay
@@ -289,7 +313,7 @@ void loop() {
 
     previousMillis_loop = currentMillis;
   }
-  
+
   #if defined(RAND_CHANGE_MINTIME) && defined(RAND_CHANGE_MAXTIME)
     Change_Display_ramdomly();
   #endif
@@ -315,5 +339,5 @@ void loop() {
     previousMillis_clock = currentMillis;
     change_clock();
   }
-  #endif  
+  #endif
 }

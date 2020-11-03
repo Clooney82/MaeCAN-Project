@@ -1,18 +1,32 @@
 /******************************************************************************
+ * DO NOT CHANGE
+ * >>>>>>>>>>>>
+ ******************************************************************************/
+/******************************************************************************
  * DEFINE FONTS
  ******************************************************************************/
 #define FONT_4x6      u8g2_font_4x6_t_german
 #define FONT_5x8      u8g2_font_5x8_t_german
 #define FONT_6x13B    u8g2_font_6x13B_t_german
 #define FONT_PS_11X17 u8g2_font_tpss_t_german
-
+/******************************************************************************
+ * <<<<<<<<<<<<<
+ * DO NOT CHANGE
+ ******************************************************************************/
+/******************************************************************************
+ * Where to Change things in this File:
+ * 1. LINE(S):  26 to 180
+ * 2. LINE(S): 230 to 344
+ * ...
+ * ...
+ ******************************************************************************/
 /******************************************************************************
  * Usage options:
  ******************************************************************************/
 //#define DEBUG           // General debug messages
 //#define DEBUG_WIFI      // debug WiFi
 //#define DEBUG_TELNET     // debug telnet
-//#define DEBUG_HTTP
+//#define DEBUG_HTTP       // debug http
 
 /******************************************************************************
  * PROTOCOL OPTIONS:
@@ -22,7 +36,17 @@
 //#define USE_MACAN     // enable this if you want to use MäCAN Interface
 //#define USE_DCC       // enable this if you want to use DCC
 #define USE_WIFI      // enable this if you want wifi
+                      // Please check also Line 33 to 35
                       // only Available on ESP8266 hardware.
+/******************************************************************************
+ * IF USING TELNET:
+ * please check 24_telnet.h
+ ******************************************************************************/
+#ifdef USE_WIFI
+  #define USE_WIFI_CLOCK      // Enable option to control clock via WiFi (telnet)
+  #define USE_TELNET          // Use telnet to control Displays
+  #define USE_HTTP            // Use http Webserver to control Displays (work in progress)
+#endif
 //#define ESP32
 
 /******************************************************************************
@@ -48,43 +72,17 @@
 #define DYNAMIC_CLOCK
 //#define DYNAMIC_DEPARTURE_TIME
 #define USE_ANALOG_CLOCK
-//#define RANDOM_LATE
-
-/******************************************************************************
- * WIFI USAGE OPTIONS:
- * please check 23_wifi.h
- **************************** 
- * IF USING TELNET:
- * please check 24_telnet.h
- ******************************************************************************/
-#ifdef USE_WIFI
-  //#define USE_MANUAL_IP     // Manual IP Setup
-  #define USE_WIFI_CLOCK      // Enable option to control clock via WiFi (telnet)
-  #define USE_TELNET          // Use telnet to control Displays
-  #define USE_HTTP            // Use http Webserver to control Displays (work in progress)
-#endif
+#define RANDOM_LATE
 
 /******************************************************************************
  * Generell Setup:
- ******************************************************************************
- * Define for: on which Side of the OLED the rail is
  ******************************************************************************/
-#define GleisSeite_Links    0      // An enum uses 2 byte RAM and this uses more byte in the code also ;-(
-#define GleisSeite_Rechts   1      // Without enum we save 1 byte RAM and 18 bytes FLASH !
-
 /******************************************************************************
- * Starting Address of the Messages
+ * Starting Address of the Messages - DCC and MäCAN
  ******************************************************************************/
 int base_address = 145;
 
 uint8_t add_dep_time = 15;    // add xx Min departure time ( current time + xx )
-/******************************************************************************
- * Constants for the UpdateDisplay variable:
- ******************************************************************************/
-#define DONT_UPD_DISP  0
-#define UPD_DISP_ONCE  1  // Update the display once. It has a rolling text UpdateDisplay is set to UPD_DISP_ROLL oterwise its set to DONT_UPD_DISP
-#define UPD_DISP_ROLL  2  // Display is updated preiodic because a rolling display is active
-#define UPD_DISP_STOP  3  // Stop the rolling display
 
 /******************************************************************************
  * If the following two lines are enabled the displayed text will change randomly
@@ -100,7 +98,7 @@ uint8_t add_dep_time = 15;    // add xx Min departure time ( current time + xx )
     #define DCC_SIGNAL_PIN    6   // Connected to the opto coppler which reads the DCC signals
                                   // USE HCPL-260L-000E instead of 6N137
   #else
-    #define DCC_SIGNAL_PIN    2   // Connected to the opto coppler which reads the DCC signals
+    #define DCC_SIGNAL_PIN    D4   // Connected to the opto coppler which reads the DCC signals
   #endif
 #endif
 
@@ -155,11 +153,11 @@ uint8_t add_dep_time = 15;    // add xx Min departure time ( current time + xx )
 #else
 /******************************************************************************
 * PIN assignment in case of other HW !!!
-* 
+*
 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 * !!! MANUAL ADJUSTMENT NEEDED !!!
 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-* 
+*
 ******************************************************************************/
  #define UNUSED_AIN_PIN A0
  #define OLED_CLK    14
@@ -169,11 +167,11 @@ uint8_t add_dep_time = 15;    // add xx Min departure time ( current time + xx )
  #define OLED_0_CS   15
  #define OLED_1_CS   5//1
  #define OLED_2_CS   4//3
- /*#define OLED_3_CS   5
- #define OLED_4_CS   4
+// #define OLED_3_CS   1//5
+// #define OLED_4_CS   3//4
  #define OLED_5_CS   0
  #define OLED_6_CS   2
-*/
+
 #endif
 #endif
 #endif
@@ -182,6 +180,21 @@ uint8_t add_dep_time = 15;    // add xx Min departure time ( current time + xx )
  * DO NOT CHANGE
  * >>>>>>>>>>>>
  ******************************************************************************/
+/*******************************************************************************
+ * Define for: on which Side of the OLED the rail is
+ ******************************************************************************/
+#define GleisSeite_Links    0      // An enum uses 2 byte RAM and this uses more byte in the code also ;-(
+#define GleisSeite_Rechts   1      // Without enum we save 1 byte RAM and 18 bytes FLASH !
+
+/******************************************************************************
+ * Constants for the UpdateDisplay variable:
+ ******************************************************************************/
+#define DONT_UPD_DISP  0
+#define UPD_DISP_ONCE  1  // Update the display once. It has a rolling text UpdateDisplay is set to UPD_DISP_ROLL oterwise its set to DONT_UPD_DISP
+#define UPD_DISP_ROLL  2  // Display is updated preiodic because a rolling display is active
+#define UPD_DISP_STOP  3  // Stop the rolling display
+/*****************************************************************************/
+
 const bool    GREEN = 1;
 const bool    RED   = 0;
 const bool    ON  = 1;
@@ -190,7 +203,7 @@ const bool    OFF = 0;
 #define SERIAL_BAUDRATE         115200  // Attention the serial monitor of the Arduino IDE must use the same baud rate
 
 typedef struct
-{ 
+{
   U8G2    *oled;
 #ifdef USE_I2C
   uint8_t  OLED_Enable_Pin;
@@ -277,8 +290,12 @@ typedef struct
  * e.g Wemos D1 mini
  ************************************************************************/
   U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled0(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_0_CS, OLED_DC, OLED_RESET); // Gleis 1a
-  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled1(U8G2_R2, OLED_CLK, OLED_MOSI, OLED_1_CS, OLED_DC);             // Gleis 1 - vorne
-  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled2(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_2_CS, OLED_DC);             // Gleis 1 - hinten
+//  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled1(U8G2_R2, OLED_CLK, OLED_MOSI, OLED_1_CS, OLED_DC);             // Gleis 1 - vorne
+//  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled2(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_2_CS, OLED_DC);             // Gleis 1 - hinten
+//  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled3(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_3_CS, OLED_DC);             // Gleis 1 - hinten
+//  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled4(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_4_CS, OLED_DC);             // Gleis 1 - hinten
+//  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled5(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_5_CS, OLED_DC);             // Gleis 1 - hinten
+//  U8G2_SSD1306_128X32_UNIVISION_F_4W_SW_SPI  oled6(U8G2_R0, OLED_CLK, OLED_MOSI, OLED_6_CS, OLED_DC);             // Gleis 1 - hinten
 
 #endif
 #endif
@@ -292,10 +309,10 @@ typedef struct
  * e.g. if you have 4 RAIL, you need 4 entries here
  ******************************************************************************/
 const RAILS_T rail_definition[] = {
-//                               "1a",
-                                "1",
-//                                "2", 
-//                                "3", 
+                               "1a",
+//                                "1",
+//                                "2",
+//                                "3",
 //                                "4"
 };
 
@@ -305,9 +322,9 @@ const RAILS_T rail_definition[] = {
  ******************************************************************************/
 #ifdef USE_I2C
 OLED_T oleds[] = { //OLED,   OLED_Enable_Pin, RailNr, RailSide,          UpdateDisplay
-                  {  &oled,       1,         "1a",   GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
-                  {  &oled,       2,         "1",    GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
-                  {  &oled,       3,         "1",    GleisSeite_Links,  UPD_DISP_ONCE, 0, 0, 0, 0},
+                  {  &oled,       1,         "1",   GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
+                  {  &oled,       2,         "2",    GleisSeite_Rechts, UPD_DISP_ONCE, 0, 0, 0, 0},
+                  {  &oled,       3,         "3",    GleisSeite_Links,  UPD_DISP_ONCE, 0, 0, 0, 0},
 };
 #else
 /******************************************************************************
@@ -330,3 +347,17 @@ OLED_T oleds[] = { //OLED, RailNr, RailSide, UpdateDisplay
  ******************************************************************************/
 #define RAIL_COUNT (sizeof(rail_definition)/sizeof(RAILS_T))
 #define OLED_COUNT (sizeof(oleds)/sizeof(OLED_T))
+
+
+#if (defined(USE_MACAN) && defined(USE_DCC) && defined(USE_WIFI))
+  #error only use MäCAN or DCC or WiFi
+#endif
+#if (defined(USE_MACAN) && defined(USE_DCC))
+  #error only use MäCAN or DCC
+#endif
+#if (defined(USE_MACAN) && defined(USE_WIFI))
+  #error only use MäCAN or WiFi
+#endif
+#if (defined(USE_DCC) && defined(USE_WIFI))
+  #error only use DCC or WiFi
+#endif
